@@ -1,0 +1,34 @@
+/* AnnouncementDescriptionComponent.css */
+.blink {
+    animation: blink-animation 1.5s linear infinite;
+  }
+  
+  @keyframes blink-animation {
+    50% {
+      opacity: 0;
+    }
+  }
+
+  /* Preserve line breaks and spacing in announcement content */
+  .announcement-content p {
+    margin: 0;
+    padding: 0;
+    min-height: 1.6em; /* Ensure empty paragraphs take up space */
+  }
+
+  .announcement-content br {
+    display: block;
+    content: "";
+    margin-top: 1em; /* Add space for line breaks */
+  }
+
+  .announcement-content p:not(:last-child) {
+    margin-bottom: 1em; /* Space between paragraphs */
+  }
+
+  /* Ensure empty paragraphs are visible */
+  .announcement-content p:empty::before {
+    content: "\00a0"; /* Non-breaking space */
+    display: inline-block;
+  }
+  

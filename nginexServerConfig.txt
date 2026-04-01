@@ -1,0 +1,153 @@
+
+To run application in nginex
+
+
+sudo ln -s /etc/nginx/sites-available/project_name /etc/nginx/sites-enabled/
+
+****************** project_name file for parent application(var/www/html)*********************
+FIle Path - /etc/nginx/sites-available/project_name
+********************************************************************************
+server {
+    listen 80;
+    listen [::]:80;
+    server_name bugsintrap.com;
+
+    # Redirect all HTTP to HTTPS
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name bugsintrap.com;
+
+    root /var/www/html/out;
+    index index.html;
+    try_files $uri /index.html;
+
+    # SSL (Certbot will auto-fill these paths after issuing)
+    ssl_certificate     /etc/nginx/ssl/certificate.pem;
+    ssl_certificate_key /etc/nginx/ssl/private.pem;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock; # check your PHP version
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known) { deny all; }
+    location ~* /(composer\.(json|lock)|package\.json|yarn\.lock|phpunit\.xml|\.env|\.git) { deny all; }
+
+    location ~* \.(?:css|js|jpg|jpeg|png|gif|ico|svg|webp|ttf|otf|woff|woff2)$ {
+        expires 30d;
+        access_log off;
+        try_files $uri $uri/ @laravel;
+    }
+
+    location @laravel {
+        rewrite ^/(.*)$ /index.php?$query_string last;
+    }
+
+    client_max_body_size 20M;
+
+    access_log /var/log/nginx/bugsintrap.access.log;
+    error_log  /var/log/nginx/bugsintrap.error.log;
+}
+
+
+sudo nginx -t
+sudo systemctl reload nginx
+
+
+
+
+****************** project_name file for child application(var/www/childApplicationName)*********************
+FIle Path - /etc/nginx/sites-available/childApplicationName
+********************************************************************************
+# ------------------------
+# bugsintrap.com (Next.js)
+# ------------------------
+server {
+    listen 80;
+    server_name bugsintrap.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name bugsintrap.com;
+
+    ssl_certificate     /etc/nginx/ssl/certificate.pem;
+    ssl_certificate_key /etc/nginx/ssl/private.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;  # Next.js app
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+# -------------------------------
+# shikshaapp.bugsintrap.com (Laravel)
+# -------------------------------
+server {
+    listen 80;
+    server_name shikshaapp.bugsintrap.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name shikshaapp.bugsintrap.com;
+
+    root /var/www/shikshaapp/public;
+    index index.php index.html;
+
+    ssl_certificate     /etc/nginx/ssl/certificate.pem;
+    ssl_certificate_key /etc/nginx/ssl/private.pem;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known) { deny all; }
+    location ~* /(composer\.(json|lock)|package\.json|yarn\.lock|phpunit\.xml|\.env|\.git) { deny all; }
+
+    location ~* \.(?:css|js|jpg|jpeg|png|gif|ico|svg|webp|ttf|otf|woff|woff2)$ {
+        expires 30d;
+        access_log off;
+        try_files $uri $uri/ @laravel;
+    }
+
+    location @laravel {
+        rewrite ^/(.*)$ /index.php?$query_string last;
+    }
+
+    client_max_body_size 20M;
+
+    access_log /var/log/nginx/shikshaapp.access.log;
+    error_log  /var/log/nginx/shikshaapp.error.log;
+}
+
+
+
+sudo nginx -t
+sudo systemctl reload nginx
+
+
+

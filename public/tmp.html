@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canvas Image and Text</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+      }
+      canvas {
+        border: 1px solid #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="myCanvas" width="1755" height="1241"></canvas>
+    <img src="" style="width: 100%;height:100%" id="img_canvas" />
+
+    <script>
+      const canvas = document.getElementById('myCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // Load an image
+      const img = new Image();
+      img.src = '/shradhawan.jpg'; // Replace with your image URL
+     // img.sec='/shradhawan.jpg';
+
+      // Function to convert canvas to Base64 PNG
+      function convertCanvasToBase64() {
+        // Get the Base64 URL of the canvas
+        const base64Image = canvas.toDataURL('image/png');
+
+        // Display the Base64 image in an <img> element
+        const outputImage = document.getElementById('outputImage');
+        outputImage.src = base64Image;
+
+        return base64Image;
+      }
+      img.onload = function () {
+        // Draw the image on the canvas
+        ctx.drawImage(img, 0, 0, 1755, 1241); // x, y, width, height
+
+        // Set the font properties
+        ctx.font = 'bold 50px Arial';
+        ctx.fillStyle = 'black';
+        const text = 'Roshan Kumar & santosh sir ';
+
+        // Calculate text width
+        const textWidth = ctx.measureText(text).width;
+
+        // Calculate the x position to center the text
+        const x = (canvas.width - textWidth) / 2;
+
+        // Draw centered text on the canvas
+        ctx.fillText(text, x, 700); // x, y
+const _img = document.querySelectorAll("#img_canvas")[0];
+        // .setAttribute("src", convertCanvasToBase64());
+
+      };
+    </script>
+  </body>
+</html>

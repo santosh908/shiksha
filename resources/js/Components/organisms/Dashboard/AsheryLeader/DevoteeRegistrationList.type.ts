@@ -1,0 +1,34 @@
+export interface RegistrationRequest {
+  id: number;
+  ProfilePrID: number;
+  login_id: string;
+  name: string;
+  Initiated_name: string;
+  devotee_type: string;
+  email: string;
+  contact_number: string;
+  dob: string;
+  have_you_applied_before: string;
+  spiritual_master: string;
+  join_askcon: string;
+  current_address: string;
+  permanent_address: string;
+  pincode: string;
+  state_name: string;
+  district_name: string;
+  how_many_rounds_you_chant: string;
+  when_are_you_chantin: string;
+  spend_everyday_hearing_lectures: string;
+  bakti_shastri_degree: string;
+  other_ashry_leader_name: string;
+  since_when_you_attending_ashray_class: string;
+  spiritual_master_you_aspiring: string;
+  attend_shray_classes_in_temple: string;
+  status_code: string;
+  remarks?: string;
+  created_at: string;
+  ashery_leader_name?: string;
+  ashray_leader_initiated_name?: string;
+  bhakti_bhikshuk_name?: string;
+  bhakti_leader_initiated_name?: string;
+}

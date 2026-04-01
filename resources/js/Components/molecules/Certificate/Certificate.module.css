@@ -1,0 +1,52 @@
+.certificate_container {
+    width: 100%;
+    max-width: 1086px; /* adjust as needed */
+    margin: auto;
+    background-image: url('/path/to/shradhawan.jpg');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    padding: 60px 20px;
+    text-align: center;
+    color: #000;
+    font-family: 'Arial', sans-serif;
+  }
+  
+  .certificate_content {
+    position: relative;
+    color: #333;
+  }
+  
+  .certificate_title {
+    font-size: 36px;
+    margin: 20px 0;
+  }
+  
+  .certificate_subtitle {
+    font-size: 20px;
+    margin: 20px 0;
+  }
+  
+  .certificate_name {
+    font-size: 28px;
+    font-weight: bold;
+    margin: 20px 0;
+    text-decoration: underline;
+  }
+  
+  .certificate_text {
+    font-size: 18px;
+    margin-top: 20px;
+  }
+  
+  .signature_container {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 40px;
+    font-size: 14px;
+  }
+  
+  .signature_container div {
+    text-align: center;
+  }
+  

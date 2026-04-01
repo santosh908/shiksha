@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../../.."
+		},
+		{
+			"name": "SSH FS - shishaapp",
+			"uri": "ssh://shishaapp/var/www/html"
+		}
+	],
+	"settings": {
+		"notebook.defaultFormatter": "esbenp.prettier-vscode"
+	}
+}

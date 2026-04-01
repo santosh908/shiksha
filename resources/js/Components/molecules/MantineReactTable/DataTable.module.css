@@ -1,0 +1,10 @@
+/* Add this to your DataTable.module.css */
+:global(.m_4e7aa4ef),
+:global(.m_4e7aa4f3) {
+  padding: 0 !important;
+}
+
+:global(.mantine-Table-th),
+:global(.mantine-Table-td) {
+  padding: 0 !important;
+}
