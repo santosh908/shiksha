@@ -38,9 +38,9 @@ const Navigation = ({ onClose }: NavigationProps) => {
           ? {
               links: [
                 {
-                  label: 'Complete Registration', // Corrected typo
+                  label: 'Registration summary',
                   icon: IconRegistered,
-                  link: '/Devotee/Registration',
+                  link: '/Devotee/previewdata',
                 },
               ],
             }
@@ -52,9 +52,9 @@ const Navigation = ({ onClose }: NavigationProps) => {
           ? {
               links: [
                 {
-                  label: 'Profile', // Corrected typo
+                  label: 'Profile',
                   icon: IconRegistered,
-                  link: '/Devotee/Registration',
+                  link: '/Devotee/Profile',
                 },
                 {
                   label: 'Shiksha Lavel Completed', // Corrected typo

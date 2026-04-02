@@ -24,7 +24,5 @@ createInertiaApp({
       </MasterLayout>
     );
   },
-  progress: {
-    color: '#ff8809',
-  },
+  progress: false,
 });

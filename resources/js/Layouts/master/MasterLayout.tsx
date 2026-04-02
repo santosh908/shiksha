@@ -1,15 +1,11 @@
-import useMasterApplicationStore from '@/Store/MasterApplication.store';
-import { Head } from '@inertiajs/react';
-import { createTheme, MantineColorsTuple, MantineProvider } from '@mantine/core';
-import React, { Fragment } from 'react';
-import { ErrorBoundary } from 'react-error-boundary';
-// import ErrorBoundary from './ErrorBoundary';
-import ErrorFallback from './ErrorFallback';
-import { error } from 'console';
 import { errorLogService } from '@/Services/errorLogService';
-import { Notifications } from '@mantine/notifications';
+import { router } from '@inertiajs/react';
+import { Center, Loader, MantineColorsTuple, MantineProvider, createTheme } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
-// import errorFallback from './ErrorFallback';
+import { ErrorBoundary } from 'react-error-boundary';
+import React, { useEffect, useState } from 'react';
+import ErrorFallback from './ErrorFallback';
+import { Notifications } from '@mantine/notifications';
 
 const primaryColor: MantineColorsTuple = [
   '#fff4e2',
@@ -51,11 +47,46 @@ type MasterLayoutProps = {
  * @returns {React.ReactElement} The master layout component.
  */
 function MasterLayout({ children }: MasterLayoutProps): React.ReactElement {
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const removeStart = router.on('start', () => setIsLoading(true));
+    const removeFinish = router.on('finish', () => setIsLoading(false));
+    const removeError = router.on('error', () => setIsLoading(false));
+    const removeInvalid = router.on('invalid', () => setIsLoading(false));
+    const removeException = router.on('exception', () => setIsLoading(false));
+
+    return () => {
+      removeStart();
+      removeFinish();
+      removeError();
+      removeInvalid();
+      removeException();
+    };
+  }, []);
+
   return (
     <ErrorBoundary onError={(error, info) => errorLogService.logError(error, info)} FallbackComponent={ErrorFallback}>
       <MantineProvider theme={theme}>
         <Notifications />
-        <ModalsProvider>{children}</ModalsProvider>
+        <ModalsProvider>
+          {children}
+          {isLoading ? (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                zIndex: 9999,
+              }}
+            >
+              <Center style={{ width: '100%', height: '100%', flexDirection: 'column', gap: 12 }}>
+                <Loader size="lg" color="orange" />
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#555' }}>Loading...</div>
+              </Center>
+            </div>
+          ) : null}
+        </ModalsProvider>
       </MantineProvider>
     </ErrorBoundary>
   );

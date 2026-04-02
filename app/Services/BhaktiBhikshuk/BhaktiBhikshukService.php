@@ -1,9 +1,11 @@
 <?php
 
 namespace App\Services\BhaktiBhikshuk;
+
+use App\Models\AsheryLeader;
 use App\Models\BhaktiBhekshuk;
 use App\Models\User;
-use App\Models\AsheryLeader;
+use App\Support\Auth\UserEffectivePermissionsCache;
 use Illuminate\Support\Facades\Auth;
 
 class BhaktiBhikshukService
@@ -60,6 +62,8 @@ class BhaktiBhikshukService
                 'is_active' => $request->is_active ?? 'Y',
             ]
         );
+
+        UserEffectivePermissionsCache::forget($crUser->id);
 
         return $crUser;
     }

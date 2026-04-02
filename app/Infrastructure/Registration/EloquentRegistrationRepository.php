@@ -50,57 +50,94 @@ class EloquentRegistrationRepository implements RegistrationRepositoryInterface
     {
         return DB::transaction(function () use ($data) {
             $initiatedName = !empty($data['Initiated_name']) ? $data['Initiated_name'] : 'NA';
-            $userNo = User::where('devotee_type', 'AD')->count() + 1;
-            $paddedUserNo = str_pad((string) $userNo, 3, '0', STR_PAD_LEFT);
+            $existingUser = User::where('email', $data['email'])
+                ->where('contact_number', $data['contact_number'])
+                ->where('devotee_type', 'AD')
+                ->where(function ($q) {
+                    $q->whereNull('profile_submitted')
+                        ->orWhere('profile_submitted', '!=', 'Y');
+                })
+                ->where(function ($q) {
+                    $q->whereNull('account_approved')
+                        ->orWhereIn('account_approved', ['N', 'R']);
+                })
+                ->lockForUpdate()
+                ->first();
 
-            $user = User::create([
-                'email' => $data['email'],
-                'name' => $data['name'],
-                'Initiated_name' => $initiatedName,
-                'dob' => $data['dob'],
-                'contact_number' => $data['contact_number'],
-                'have_you_applied_before' => $data['have_you_applied_before'],
-                'devotee_type' => $data['devotee_type'],
-                'password' => Hash::make($data['password']),
-                'login_id' => $this->generateUserId($data['name'], $paddedUserNo, $data['dob']),
-                'm_relation_type' => $data['relation_type'],
-                'relative_login_id' => $data['relation_type'] === 'relative' ? $data['relative_login_id'] : null,
-                'account_approved' => 'N',
-            ]);
+            if ($existingUser) {
+                $existingUser->update([
+                    'email' => $data['email'],
+                    'name' => $data['name'],
+                    'Initiated_name' => $initiatedName,
+                    'dob' => $data['dob'],
+                    'contact_number' => $data['contact_number'],
+                    'have_you_applied_before' => $data['have_you_applied_before'],
+                    'devotee_type' => $data['devotee_type'],
+                    'password' => Hash::make($data['password']),
+                    'm_relation_type' => $data['relation_type'],
+                    'relative_login_id' => $data['relation_type'] === 'relative' ? $data['relative_login_id'] : null,
+                    'account_approved' => 'N',
+                    'profile_submitted' => 'Y',
+                ]);
+                $user = $existingUser->fresh();
+            } else {
+                $userNo = User::where('devotee_type', 'AD')->count() + 1;
+                $paddedUserNo = str_pad((string) $userNo, 3, '0', STR_PAD_LEFT);
+                $user = User::create([
+                    'email' => $data['email'],
+                    'name' => $data['name'],
+                    'Initiated_name' => $initiatedName,
+                    'dob' => $data['dob'],
+                    'contact_number' => $data['contact_number'],
+                    'have_you_applied_before' => $data['have_you_applied_before'],
+                    'devotee_type' => $data['devotee_type'],
+                    'password' => Hash::make($data['password']),
+                    'login_id' => $this->generateUserId($data['name'], $paddedUserNo, $data['dob']),
+                    'm_relation_type' => $data['relation_type'],
+                    'relative_login_id' => $data['relation_type'] === 'relative' ? $data['relative_login_id'] : null,
+                    'account_approved' => 'N',
+                    'profile_submitted' => 'Y',
+                ]);
+            }
 
-            $professional = ProfessionalInformation::create([
-                'user_id' => $user->id,
-                'education' => $data['Educational'],
-                'marital_status' => $data['MaritalStatus'],
-                'profession' => $data['Profession'],
-                'spiritual_master' => $data['SpiritualMaster'],
-                'join_askcon' => $data['JoinedSckon'],
-                'current_address' => $data['CurrentAddress'],
-                'Socity_Name' => $data['Socity_Name'] ?? null,
-                'Sector_Area' => $data['Sector_Area'] ?? null,
-                'pincode' => $data['Pincode'],
-                'state_code' => $data['State'],
-                'district_code' => $data['District'],
-                'how_many_rounds_you_chant' => $data['NoOfChant'] ?? null,
-                'when_are_you_chantin' => $data['ChantingStartDate'] ?? null,
-                'spend_everyday_hearing_lectures' => $data['SpendTimeHearingLecture'] ?? null,
-                'bakti_shastri_degree' => $data['ShastriDegree'] ?? null,
-                'since_when_you_attending_ashray_classes' => $data['since_when_you_attending_ashray_classes'] ?? null,
-                'spiritual_master_you_aspiring' => $data['spiritual_master_you_aspiring'] ?? null,
-                'personal_info' => 'Y',
-                'professional_info' => 'Y',
-                'hearing_reading' => 'Y',
-                'seminar' => 'Y',
-                'status_code' => 'S',
-            ]);
+            $professional = ProfessionalInformation::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'education' => $data['Educational'],
+                    'marital_status' => $data['MaritalStatus'],
+                    'profession' => $data['Profession'],
+                    'spiritual_master' => $data['SpiritualMaster'],
+                    'join_askcon' => $data['JoinedSckon'],
+                    'current_address' => $data['CurrentAddress'],
+                    'Socity_Name' => $data['Socity_Name'] ?? null,
+                    'Sector_Area' => $data['Sector_Area'] ?? null,
+                    'pincode' => $data['Pincode'],
+                    'state_code' => $data['State'],
+                    'district_code' => $data['District'],
+                    'how_many_rounds_you_chant' => $data['NoOfChant'] ?? null,
+                    'when_are_you_chantin' => $data['ChantingStartDate'] ?? null,
+                    'spend_everyday_hearing_lectures' => $data['SpendTimeHearingLecture'] ?? null,
+                    'bakti_shastri_degree' => $data['ShastriDegree'] ?? null,
+                    'since_when_you_attending_ashray_classes' => $data['since_when_you_attending_ashray_classes'] ?? null,
+                    'spiritual_master_you_aspiring' => $data['spiritual_master_you_aspiring'] ?? null,
+                    'personal_info' => 'Y',
+                    'professional_info' => 'Y',
+                    'hearing_reading' => 'Y',
+                    'seminar' => 'Y',
+                    'status_code' => 'S',
+                ]
+            );
 
-            UserAssignAshrayLeader::create([
-                'user_id' => $user->id,
-                'ashray_leader_code' => $data['ashray_leader_code'],
-                'Bhakti_Bhekshuk' => $data['Bhakti_BhikshukId'] ?? 0,
-                'is_active' => 'Y',
-            ]);
+            UserAssignAshrayLeader::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'ashray_leader_code' => $data['ashray_leader_code'],
+                    'Bhakti_Bhekshuk' => $data['Bhakti_BhikshukId'] ?? 0,
+                    'is_active' => 'Y',
+                ]
+            );
 
+            DevoteePrinciples::where('personal_info_id', $professional->id)->delete();
             foreach (($data['RegulativePrinciples'] ?? []) as $principleId) {
                 DevoteePrinciples::create([
                     'personal_info_id' => $professional->id,
@@ -108,6 +145,7 @@ class EloquentRegistrationRepository implements RegistrationRepositoryInterface
                     'is_active' => 'Y',
                 ]);
             }
+            DevoteeBookRead::where('personal_info_id', $professional->id)->delete();
             foreach (($data['BooksRead'] ?? []) as $bookId) {
                 DevoteeBookRead::create([
                     'personal_info_id' => $professional->id,
@@ -115,12 +153,14 @@ class EloquentRegistrationRepository implements RegistrationRepositoryInterface
                     'is_active' => 'Y',
                 ]);
             }
+            DevoteeMemoriesPrayer::where('personal_info_id', $professional->id)->delete();
             foreach (($data['MemorisedPrayers'] ?? []) as $prayerId) {
                 DevoteeMemoriesPrayer::create([
                     'personal_info_id' => $professional->id,
                     'prayer_id' => $prayerId,
                 ]);
             }
+            DevoteeAttendedSeminar::where('personal_info_id', $professional->id)->delete();
             foreach (($data['Seminar'] ?? []) as $seminarId) {
                 DevoteeAttendedSeminar::create([
                     'personal_info_id' => $professional->id,

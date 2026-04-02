@@ -797,18 +797,139 @@ class PostRegistraionService
 
     public function DevoteeSuperAdminList()
     {
+        $perPage = (int) request()->input('per_page', 50);
+        $perPage = min(max($perPage, 10), 200);
+
+        $page = max((int) request()->input('page', 1), 1);
+        $offset = ($page - 1) * $perPage;
+
+        $query = $this->buildDevoteeSuperAdminQuery()->orderBy('user_id', 'desc');
+
+        // Avoid paginate() because it runs an expensive COUNT(*) over the view.
+        $items = (clone $query)->offset($offset)->limit($perPage)->get();
+        $hasMore = (clone $query)->offset($offset + $perPage)->limit(1)->exists();
+
+        $mapped = $items->map(fn ($item) => $this->transformDevoteeListRow($item))->values()->toArray();
+
+        $from = $items->isEmpty() ? null : $offset + 1;
+        $to = $items->isEmpty() ? null : $offset + count($items);
+
+        return [
+            'RegistrationRequest' => [
+                'data' => $mapped,
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => null,
+                'last_page' => null,
+                'from' => $from,
+                'to' => $to,
+                'has_more_pages' => $hasMore,
+            ],
+        ];
+    }
+
+    /**
+     * Global export for current filter/search across ALL devotees (not only current page).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function DevoteeSuperAdminListForExport(): array
+    {
+        return $this->buildDevoteeSuperAdminQuery()
+            ->orderBy('user_id', 'desc')
+            ->get()
+            ->map(fn ($item) => $this->transformDevoteeListRow($item))
+            ->toArray();
+    }
+
+    private function buildDevoteeSuperAdminQuery()
+    {
         $user = Auth::user();
-        $query = DB::table('devotee_registration_list_view');
-        
+        // IMPORTANT: Do NOT use the heavy SQL view for the list page.
+        // The view contains many per-row subqueries (group_concat) that make even
+        // small datasets feel slow. For listing we only need basic indexed joins.
+        $query = DB::table('users as u')
+            ->join('professional_information as pi', 'pi.user_id', '=', 'u.id')
+            ->leftJoin('user_have_ashray_leader as ual', function ($join) {
+                $join->on('ual.user_id', '=', 'u.id')
+                    ->where('ual.is_active', '=', 'Y');
+            })
+            ->leftJoin('ashery_leader as al', 'al.code', '=', 'ual.ashray_leader_code')
+            ->leftJoin('users as al_user', 'al_user.id', '=', 'al.user_id')
+            ->leftJoin('bhakti_bhekshuk as bb', 'bb.id', '=', 'ual.Bhakti_Bhekshuk')
+            ->leftJoin('users as bb_user', 'bb_user.id', '=', 'bb.user_id')
+            ->leftJoin('education as edu', 'edu.id', '=', 'pi.education')
+            ->leftJoin('merital_status as ms', 'ms.id', '=', 'pi.marital_status')
+            ->leftJoin('profession as prof', 'prof.id', '=', 'pi.profession')
+            ->leftJoin('state as st', 'st.lg_code', '=', 'pi.state_code')
+            ->leftJoin('district as dist', 'dist.district_lg_code', '=', 'pi.district_code')
+            ->where('u.devotee_type', '=', 'AD')
+            ->select([
+                'u.id as user_id',
+                'pi.id as ProfilePrID',
+                'al.ashery_leader_name',
+                'al_user.Initiated_name as ashray_leader_initiated_name',
+                'bb.bhakti_bhikshuk_name',
+                'bb_user.Initiated_name as bhakti_leader_initiated_name',
+                'al.code as ashray_leader_code',
+                'bb.user_id as bhakti_vriksha_user_id',
+                'u.devotee_type',
+                'u.name',
+                'u.Initiated_name',
+                'u.email',
+                'u.contact_number',
+                'u.dob',
+                'u.login_id',
+                'edu.eduction_name',
+                'ms.merital_status_name',
+                'prof.profession_name',
+                'pi.spiritual_master',
+                'pi.join_askcon',
+                'pi.current_address',
+                'pi.Socity_Name',
+                'pi.Sector_Area',
+                'dist.district_name',
+                'st.state_name',
+                'pi.pincode',
+                'pi.how_many_rounds_you_chant',
+                'pi.when_are_you_chantin',
+                'pi.spend_everyday_hearing_lectures',
+                'pi.bakti_shastri_degree',
+                'pi.since_when_you_attending_ashray_classes',
+                'pi.spiritual_master_you_aspiring',
+                DB::raw("COALESCE(NULLIF(pi.status_code, ''), 'P') as status_code"),
+                DB::raw("(SELECT GROUP_CONCAT(rp.principle_name_eglish ORDER BY rp.principle_name_eglish SEPARATOR ', ')
+                    FROM devotee_principles dp
+                    INNER JOIN regulative_principle rp ON rp.id = dp.principle_id
+                    WHERE dp.personal_info_id = pi.id) as regulative_principles"),
+                DB::raw("(SELECT GROUP_CONCAT(b.book_name_english ORDER BY b.book_name_english SEPARATOR ', ')
+                    FROM devotee_book dbk
+                    INNER JOIN book b ON b.id = dbk.book_id
+                    WHERE dbk.personal_info_id = pi.id) as DevoteeBookRead"),
+                DB::raw("(SELECT GROUP_CONCAT(pr.prayer_name_english ORDER BY pr.prayer_name_english SEPARATOR ', ')
+                    FROM devotee_memorised_prayers dmp
+                    INNER JOIN prayer pr ON pr.id = dmp.prayer_id
+                    WHERE dmp.personal_info_id = pi.id) as DevoteePrayers"),
+                DB::raw("(SELECT GROUP_CONCAT(s.seminar_name_english ORDER BY s.seminar_name_english SEPARATOR ', ')
+                    FROM devotee_attended_seminar das
+                    INNER JOIN seminar s ON s.id = das.seminar_id
+                    WHERE das.personal_info_id = pi.id) as DevoteeSeminar"),
+                DB::raw("(SELECT GROUP_CONCAT(drr.remarks ORDER BY drr.id DESC SEPARATOR ', ')
+                    FROM devotee_registration_rejection drr
+                    WHERE drr.profile_id = pi.id) as DevoteeRemarks"),
+                DB::raw("(SELECT drr2.remarks
+                    FROM devotee_registration_rejection drr2
+                    WHERE drr2.profile_id = pi.id
+                    ORDER BY drr2.id DESC
+                    LIMIT 1) as remarks"),
+                'pi.created_at',
+            ]);
+
         // ---------------- Role Based Filters ----------------
         if ($user && $user->hasRole('AsheryLeader')) {
             $asheryLeader = AsheryLeader::where('user_id', $user->id)->first();
             if ($asheryLeader) {
                 $query->where('ashray_leader_code', '=', $asheryLeader->code);
-                    //->where(function ($q) {
-                    //    $q->where('bhakti_vriksha_user_id', 0)
-                   //         ->orWhereNull('bhakti_vriksha_user_id');
-                   // });
             }
         }
 
@@ -816,32 +937,70 @@ class PostRegistraionService
             $query->where('bhakti_vriksha_user_id', '=', $user->id);
         }
 
-        $list = $query->orderBy('user_id', 'desc')->get();
-
-        // ---------------- Format Data ----------------
-        $DevoteeList = $list->map(function ($item) {
-            // Convert objects to arrays if needed, or keep as objects. 
-            // The previous code returned arrays, so we can cast to array if strict compatibility is needed.
-            $devotee = (array) $item;
-
-            // Explode comma-separated strings back to arrays
-            $devotee['regulative_principles'] = !empty($item->regulative_principles) ? explode(', ', $item->regulative_principles) : [];
-            $devotee['DevoteeBookRead'] = !empty($item->DevoteeBookRead) ? explode(', ', $item->DevoteeBookRead) : [];
-            $devotee['DevoteePrayers'] = !empty($item->DevoteePrayers) ? explode(', ', $item->DevoteePrayers) : [];
-            $devotee['DevoteeSeminar'] = !empty($item->DevoteeSeminar) ? explode(', ', $item->DevoteeSeminar) : [];
-            $devotee['DevoteeRemarks'] = !empty($item->DevoteeRemarks) ? explode(', ', $item->DevoteeRemarks) : [];
-
-            // Ensure status_code default
-            if (empty($devotee['status_code'])) {
-                $devotee['status_code'] = 'P';
+        $status = strtolower(trim((string) request()->input('status', '')));
+        if ($status !== '' && $status !== 'all') {
+            $statusMap = [
+                'approved' => 'A',
+                'rejected' => 'R',
+                'deleted' => 'D',
+                'submitted' => 'S',
+                'partially submitted' => 'P',
+                'partially_submitted' => 'P',
+                'p' => 'P',
+                'n' => 'P',
+                'a' => 'A',
+                'r' => 'R',
+                's' => 'S',
+                'd' => 'D',
+            ];
+            $statusCode = $statusMap[$status] ?? strtoupper($status);
+            if ($statusCode === 'N') {
+                $statusCode = 'P';
             }
+            if ($statusCode === 'P') {
+                $query->whereIn(DB::raw("COALESCE(NULLIF(status_code, ''), 'P')"), ['P', 'N']);
+            } else {
+                $query->whereRaw("COALESCE(NULLIF(status_code, ''), 'P') = ?", [$statusCode]);
+            }
+        }
 
-            return $devotee;
-        })->toArray();
+        $search = trim((string) request()->input('search', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $like = "%{$search}%";
+                $q->where('u.login_id', 'like', $like)
+                    ->orWhere('u.name', 'like', $like)
+                    ->orWhere('u.Initiated_name', 'like', $like)
+                    ->orWhere('u.email', 'like', $like)
+                    ->orWhere('u.contact_number', 'like', $like)
+                    ->orWhere('al.ashery_leader_name', 'like', $like)
+                    ->orWhere('al_user.Initiated_name', 'like', $like)
+                    ->orWhere('bb.bhakti_bhikshuk_name', 'like', $like)
+                    ->orWhere('bb_user.Initiated_name', 'like', $like);
+            });
+        }
 
-        return [
-            'RegistrationRequest' => $DevoteeList,
-        ];
+        return $query;
+    }
+
+    /**
+     * @param  object  $item
+     * @return array<string, mixed>
+     */
+    private function transformDevoteeListRow(object $item): array
+    {
+        $devotee = (array) $item;
+        $devotee['regulative_principles'] = ! empty($item->regulative_principles) ? explode(', ', $item->regulative_principles) : [];
+        $devotee['DevoteeBookRead'] = ! empty($item->DevoteeBookRead) ? explode(', ', $item->DevoteeBookRead) : [];
+        $devotee['DevoteePrayers'] = ! empty($item->DevoteePrayers) ? explode(', ', $item->DevoteePrayers) : [];
+        $devotee['DevoteeSeminar'] = ! empty($item->DevoteeSeminar) ? explode(', ', $item->DevoteeSeminar) : [];
+        $devotee['DevoteeRemarks'] = ! empty($item->DevoteeRemarks) ? explode(', ', $item->DevoteeRemarks) : [];
+
+        if (empty($devotee['status_code'])) {
+            $devotee['status_code'] = 'P';
+        }
+
+        return $devotee;
     }
     public function ApproveDevoteeByLeader($personalinfo)
     {
@@ -871,28 +1030,33 @@ class PostRegistraionService
     }
     public function RejectedDevotee($remarks, $personalinfo)
     {
-            $userDetails = User::where('id', $personalinfo)->first();
-            if ($userDetails) { // Check if userDetails was found
-                $userDetails->account_approved = 'R';
-                $userDetails->save(); // Save changes to the database
+        // Accept either professional_information.id (preferred) or users.id.
+        $professionalInfo = ProfessionalInformation::where('id', $personalinfo)->first();
+        if (!$professionalInfo) {
+            $professionalInfo = ProfessionalInformation::where('user_id', $personalinfo)->first();
+        }
+        if (!$professionalInfo) {
+            return null;
+        }
 
-                $professionalInfo = ProfessionalInformation::where('user_id', $personalinfo)->first();
-                if ($professionalInfo) {
+        $user = Auth::user();
+        $userDetails = User::where('id', $professionalInfo->user_id)->first();
+        if ($userDetails) {
+            $userDetails->account_approved = 'R';
+            $userDetails->save();
+        }
 
-                    $user = Auth::user();
-                    $professionalInfo->status_code = 'R';
-                    $professionalInfo->rejected_by = $user->id;
-                    $professionalInfo->save(); // Save changes to the database
-                }
+        $professionalInfo->status_code = 'R';
+        $professionalInfo->rejected_by = $user?->id;
+        $professionalInfo->save();
 
-                $RejectedRemarks = new DevoteeRegistraionRejected();
-                $RejectedRemarks->profile_id = $professionalInfo->id;
-                $RejectedRemarks->rejected_by = $user->id;
-                $RejectedRemarks->remarks = $remarks;
-                $RejectedRemarks->save();
-            }
+        $RejectedRemarks = new DevoteeRegistraionRejected();
+        $RejectedRemarks->profile_id = $professionalInfo->id;
+        $RejectedRemarks->rejected_by = $user?->id;
+        $RejectedRemarks->remarks = $remarks;
+        $RejectedRemarks->save();
 
-        return $userDetails;
+        return $professionalInfo;
     }
     public function SuperAdminUpdatePersonalInfo($request)
     {

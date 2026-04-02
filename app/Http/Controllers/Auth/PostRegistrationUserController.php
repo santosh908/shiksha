@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Models\RaiseQuery\RaiseQuery;
 use App\Http\Requests\DevoteeRaiseQuery\RaiseQueryRequest;
 use App\Http\Requests\DevoteeRaiseQuery\Devoteeraisequeryrequest;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 
 class PostRegistrationUserController extends Controller
@@ -32,16 +33,6 @@ class PostRegistrationUserController extends Controller
     {
         $this->postRegistrationService = $postRegistrationService;
         $this->devoteeApprovalService = $devoteeApprovalService;
-    }
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request)
-    {
-        $masterData = $this->postRegistrationService->getMasterData();
-        return Inertia::render('Devotee/Registration', [
-            'masterData' => $masterData,
-        ]);
     }
     /**
      * Store a newly created resource in storage.
@@ -109,8 +100,65 @@ class PostRegistrationUserController extends Controller
         return Inertia::render('AsheryLeader/bhaktibhikshukDevoteeList', $devoteeList);
     }
 
-    public function GetSuperAdminDevoteeList()
+    public function GetSuperAdminDevoteeList(Request $request)
     {
+        if ($request->boolean('export')) {
+            $rows = $this->postRegistrationService->DevoteeSuperAdminListForExport();
+
+            return response()->streamDownload(function () use ($rows) {
+                $output = fopen('php://output', 'w');
+                fputcsv($output, [
+                    'Login ID',
+                    'Name',
+                    'Initiated Name',
+                    'Email',
+                    'Contact Number',
+                    'DOB',
+                    'Submitted Date',
+                    'Status',
+                    'Ashray Leader',
+                    'Bhakti Vriksha Leader',
+                ]);
+
+                foreach ($rows as $row) {
+                    $statusCode = strtoupper((string) ($row['status_code'] ?? 'P'));
+                    if (in_array($statusCode, ['N', 'S'], true)) {
+                        $statusCode = 'P';
+                    }
+                    $statusLabel = match ($statusCode) {
+                        'A' => 'Approved',
+                        'R' => 'Rejected',
+                        'D' => 'Deleted',
+                        'S' => 'Submitted',
+                        default => 'Partially Submitted',
+                    };
+
+                    $dobIst = !empty($row['dob'])
+                        ? Carbon::parse($row['dob'])->timezone('Asia/Kolkata')->format('d/m/Y')
+                        : '';
+                    $submittedIst = !empty($row['created_at'])
+                        ? Carbon::parse($row['created_at'])->timezone('Asia/Kolkata')->format('d/m/Y h:i A')
+                        : '';
+
+                    fputcsv($output, [
+                        $row['login_id'] ?? '',
+                        $row['name'] ?? '',
+                        $row['Initiated_name'] ?? '',
+                        $row['email'] ?? '',
+                        $row['contact_number'] ?? '',
+                        $dobIst,
+                        $submittedIst,
+                        $statusLabel,
+                        $row['ashray_leader_initiated_name'] ?? ($row['ashery_leader_name'] ?? ''),
+                        $row['bhakti_leader_initiated_name'] ?? ($row['bhakti_bhikshuk_name'] ?? ''),
+                    ]);
+                }
+                fclose($output);
+            }, 'devotee-list.csv', [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        }
+
         $DevoteeList = $this->devoteeApprovalService->getSuperAdminDevoteeList();
         //return Inertia::render('SuperAdmin/DevoteeList', $DevoteeList); 
         return Inertia::render('SuperAdmin/DevoteeList', ['devotees' => $DevoteeList['RegistrationRequest']]);
@@ -125,7 +173,6 @@ class PostRegistrationUserController extends Controller
     {
         $decodedId = base64_decode($id);
         $updateStatus = $this->devoteeApprovalService->approveDevotee((int) $decodedId);
-        session()->put('notification', "Devotee has been approved!");
         $email = $this->devoteeApprovalService->getEmailByProfessionalId((int) $decodedId);
         if ($email) {
             $sendEmail = dispatch(new DevoteeApprovedJob(["email" => $email]));
@@ -148,10 +195,6 @@ class PostRegistrationUserController extends Controller
             }
         }
 
-        session()->put('notification', count($devoteeIds) > 1
-            ? "Multiple devotees have been approved!"
-            : "Devotee has been approved!");
-
         return redirect()->back()->with('success', count($devoteeIds) > 1
             ? 'Multiple devotees have been approved!'
             : 'Devotee has been approved!');
@@ -161,7 +204,6 @@ class PostRegistrationUserController extends Controller
     {
         $decodedId = base64_decode($id);
         $updateStatus = $this->devoteeApprovalService->rejectDevotee((string) $request['remarks'], (int) $decodedId);
-        session()->put('notification', "Devotee has been rejected!");
         $email = $this->devoteeApprovalService->getEmailByProfessionalId((int) $decodedId);
         if ($email) {
             $sendEmail = dispatch(new DevoteeRejectedJob(["email" => $email]));
@@ -173,22 +215,26 @@ class PostRegistrationUserController extends Controller
     {
         $decodedId = base64_decode($id);
         $devoteeIds = explode(',', $decodedId);
+        $updatedCount = 0;
 
         foreach ($devoteeIds as $devoteeId) {
             $updateStatus = $this->postRegistrationService->RejectedDevotee($request['remarks'], $devoteeId);
+            if ($updateStatus) {
+                $updatedCount++;
+            }
 
             // Get email and dispatch job for each devotee
             $email = $this->postRegistrationService->getEmailByProfessionalId($devoteeId);
             if ($email) {
-                dispatch(new DevoteeApprovedJob(["email" => $email]));
+                dispatch(new DevoteeRejectedJob(["email" => $email]));
             }
         }
 
-        session()->put('notification', count($devoteeIds) > 1
-            ? "Multiple devotees have been rejected!"
-            : "Devotee has been rejected!");
+        if ($updatedCount === 0) {
+            return redirect()->back()->with('error', 'No devotee status was updated. Please refresh and try again.');
+        }
 
-        return redirect()->back()->with('success', count($devoteeIds) > 1
+        return redirect()->back()->with('success', $updatedCount > 1
             ? 'Multiple devotees have been rejected!'
             : 'Devotee has been rejected!');
     }

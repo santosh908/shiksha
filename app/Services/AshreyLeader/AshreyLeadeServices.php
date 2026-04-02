@@ -1,8 +1,10 @@
 <?php
 
 namespace App\Services\AshreyLeader;
+
 use App\Models\AsheryLeader;
 use App\Models\User;
+use App\Support\Auth\UserEffectivePermissionsCache;
 class AshreyLeadeServices
 {
    public function createAsheryLeader($request)
@@ -36,6 +38,7 @@ class AshreyLeadeServices
         }
 
       $crUser->assignRole('AsheryLeader');
+      UserEffectivePermissionsCache::forget($crUser->id);
 
       // Check if user already has an AsheryLeader record
       $asheryLeader = AsheryLeader::where('user_id', $crUser->id)->first();

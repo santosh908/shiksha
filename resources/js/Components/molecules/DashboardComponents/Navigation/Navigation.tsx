@@ -81,9 +81,9 @@ const Navigation = ({ onClose }: NavigationProps) => {
           ? {
               links: [
                 {
-                  label: 'Complete Registration',
+                  label: 'Registration summary',
                   icon: IconRegistered,
-                  link: '/Devotee/Registration',
+                  link: '/Devotee/previewdata',
                 },
                 // {
                 //   label: 'Raise Query',
@@ -102,7 +102,7 @@ const Navigation = ({ onClose }: NavigationProps) => {
                 {
                   label: 'Profile',
                   icon: IconUser,
-                  link: '/Devotee/Registration',
+                  link: '/Devotee/Profile',
                 },
                 {
                   label: 'Shiksha Level Completed',

@@ -319,7 +319,7 @@ class ExaminationService
 
   public function SubmitExam($request)
   {
-    $finalSubmit = FinalSubmited::updateOrCreate(
+    return FinalSubmited::updateOrCreate(
       [
         'user_id' => Auth::User()->id,
         'exam_id' => $request->examId,
@@ -328,36 +328,26 @@ class ExaminationService
         'is_submitted' => 1,
       ]
     );
-    return $finalSubmit;
   }
 
 
   public function SaveSingleQuestion($request)
   {
-    $user = Auth::User();
-    $existingRecord = SubmitedExam::where([
-      'user_id' => $user->id,
-      'exam_id' => $request->examId,
-      'session_id' => $request->sessionId,
-      'question_id' => $request->questionId,
-    ])->first();
+    return DB::transaction(function () use ($request) {
+      $user = Auth::User();
 
-    if ($existingRecord) {
-      // Update existing record
-      $existingRecord->update([
-        'selected_answer' => $request->selectedAnswer,
-      ]);
-      return $existingRecord;
-    } else {
-      // Create new record
-      return SubmitedExam::create([
-        'user_id' => $user->id,
-        'exam_id' => $request->examId,
-        'session_id' => $request->sessionId,
-        'question_id' => $request->questionId,
-        'selected_answer' => $request->selectedAnswer,
-      ]);
-    }
+      return SubmitedExam::query()->updateOrCreate(
+        [
+          'user_id' => $user->id,
+          'exam_id' => $request->examId,
+          'session_id' => $request->sessionId,
+          'question_id' => $request->questionId,
+        ],
+        [
+          'selected_answer' => $request->selectedAnswer,
+        ]
+      );
+    });
   }
 
 

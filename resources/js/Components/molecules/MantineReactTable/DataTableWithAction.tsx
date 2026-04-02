@@ -30,7 +30,6 @@ const getStatusDisplayText = (statusCode: any): string => {
     '1': 'approved',
     '2': 'partially submitted',
     '3': 'rejected',
-    '4': 'pending',
     // Letter codes
     'a': 'approved',
     'n': 'partially submitted',
@@ -42,7 +41,7 @@ const getStatusDisplayText = (statusCode: any): string => {
     'approved': 'approved',
     'partially submitted': 'partially submitted',
     'rejected': 'rejected',
-    'pending': 'pending',
+    'pending': 'partially submitted',
     'submitted': 'submitted',
     'deleted': 'deleted',
     'partially_submitted': 'partially submitted',
@@ -58,6 +57,16 @@ const DataTableWithAction = <T extends Record<string, any>>({
   PageSize,
   options = {},
   onApproveReject,
+  serverMode = false,
+  serverSearch = '',
+  serverStatus = 'all',
+  onServerSearchChange,
+  onServerStatusChange,
+  serverPerPage,
+  serverCurrentPage,
+  onServerPerPageChange,
+  onExportAllRows,
+  hideLocalPagination = false,
 }: {
   columnsFields: any;
   data?: T[];
@@ -65,6 +74,16 @@ const DataTableWithAction = <T extends Record<string, any>>({
   PageSize: number;
   options?: any;
   onApproveReject?: (selectedRows: T[], action: 'approve' | 'reject') => void;
+  serverMode?: boolean;
+  serverSearch?: string;
+  serverStatus?: string;
+  onServerSearchChange?: (value: string) => void;
+  onServerStatusChange?: (value: string) => void;
+  serverPerPage?: number;
+  onServerPerPageChange?: (value: number) => void;
+  serverCurrentPage?: number;
+  onExportAllRows?: () => void;
+  hideLocalPagination?: boolean;
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,6 +92,8 @@ const DataTableWithAction = <T extends Record<string, any>>({
   const [sorting, setSorting] = useState<any[]>([]);
 
   const theme = useMantineTheme();
+  const effectiveCurrentPage = serverMode ? (serverCurrentPage ?? 1) : currentPage;
+  const effectivePageSize = serverMode ? (serverPerPage ?? pageSize) : pageSize;
 
   // Utility function to normalize status for comparison
   const normalizeStatus = (status: any): string => {
@@ -82,6 +103,9 @@ const DataTableWithAction = <T extends Record<string, any>>({
 
   // Get unique status values from the actual data
   const uniqueStatuses = useMemo(() => {
+    if (serverMode) {
+      return ['approved', 'submitted', 'partially submitted', 'rejected', 'deleted'];
+    }
     const statuses = new Set<string>();
     data.forEach((row) => {
       if (row.status_code) {
@@ -93,6 +117,9 @@ const DataTableWithAction = <T extends Record<string, any>>({
 
   // Filter data based on the search query and status filter
   const filteredData = useMemo(() => {
+    if (serverMode) {
+      return data;
+    }
     let filtered = data;
 
     // Apply status filter first
@@ -134,6 +161,9 @@ const DataTableWithAction = <T extends Record<string, any>>({
 
   // Sort the filtered data BEFORE pagination
   const sortedAndFilteredData = useMemo(() => {
+    if (serverMode) {
+      return filteredData;
+    }
     if (sorting.length === 0) {
       return filteredData;
     }
@@ -169,9 +199,10 @@ const DataTableWithAction = <T extends Record<string, any>>({
         // Define status priority for sorting
         const statusPriority: Record<string, number> = {
           'approved': 1,
-          'partially submitted': 2,
-          'rejected': 3,
-          'pending': 4,
+          'submitted': 2,
+          'partially submitted': 3,
+          'rejected': 4,
+          'deleted': 5,
         };
 
         const priorityA = statusPriority[statusA] || 999;
@@ -217,6 +248,9 @@ const DataTableWithAction = <T extends Record<string, any>>({
 
   // Pagination logic - Apply to SORTED data
   const paginatedData = useMemo(() => {
+    if (serverMode) {
+      return sortedAndFilteredData;
+    }
     const startIndex = (currentPage - 1) * pageSize;
     return sortedAndFilteredData.slice(startIndex, startIndex + pageSize);
   }, [sortedAndFilteredData, currentPage, pageSize]);
@@ -270,6 +304,10 @@ const DataTableWithAction = <T extends Record<string, any>>({
   };
 
   const handleExportAllRows = () => {
+    if (serverMode && onExportAllRows) {
+      onExportAllRows();
+      return;
+    }
     const flattenedData = flattenAndFilterData(sortedAndFilteredData, columnsFields);
     //@ts-ignore
     const csv = generateCsv(csvConfig)(flattenedData);
@@ -286,7 +324,7 @@ const DataTableWithAction = <T extends Record<string, any>>({
 
   const handleAction = (selectedRows: T[], action: 'approve' | 'reject') => {
     if (selectedRows.length === 0) {
-      alert("No devotees selected");
+      console.warn('No devotees selected');
       return;
     }
 
@@ -351,7 +389,7 @@ const DataTableWithAction = <T extends Record<string, any>>({
         enableSorting: false,
         enableColumnFilter: false,
         Cell: ({ row }: { row: MRT_Row<T> }) => {
-          const serialNumber = (currentPage - 1) * pageSize + row.index + 1;
+          const serialNumber = (effectiveCurrentPage - 1) * effectivePageSize + row.index + 1;
           return (
             <span
               style={
@@ -466,8 +504,14 @@ const DataTableWithAction = <T extends Record<string, any>>({
           </label>
           <select
             id="statusFilter"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={serverMode ? serverStatus : statusFilter}
+            onChange={(e) => {
+              if (serverMode) {
+                onServerStatusChange?.(e.target.value);
+              } else {
+                setStatusFilter(e.target.value);
+              }
+            }}
             style={{
               padding: '0.5rem 2.5rem 0.5rem 0.8rem',
               borderRadius: '5px',
@@ -483,17 +527,19 @@ const DataTableWithAction = <T extends Record<string, any>>({
             <option value="all">All Status</option>
             {uniqueStatuses.map((status) => (
               <option key={status} value={status}>
-                {status.toUpperCase().replace(/_/g, ' ') === "A"
-                  ? "Approved"
-                  : ["N", "P"].includes(status.toUpperCase().replace(/_/g, ' '))
-                  ? "Partially Submitted"
-                  : status.toUpperCase().replace(/_/g, ' ') === "R"
-                   ? "Rejected"
-                  : status.toUpperCase().replace(/_/g, ' ') === "S"
-                   ? "Submitted"
-                  : status.toUpperCase().replace(/_/g, ' ') === "D"
-                  ? "Deleted"
-                  : status.toUpperCase().replace(/_/g, ' ')}
+                {(() => {
+                  const normalized = String(status).toLowerCase().trim();
+                  const compact = normalized.replace(/_/g, ' ');
+
+                  if (compact === 'a' || compact === 'approved') return 'Approved';
+                  if (compact === 'r' || compact === 'rejected') return 'Rejected';
+                  if (compact === 'd' || compact === 'deleted') return 'Deleted';
+                  if (compact === 's' || compact === 'submitted') return 'Submitted';
+                  if (compact === 'p' || compact === 'n' || compact === 'partially submitted') return 'Partially Submitted';
+
+                  // Fallback: show uppercase text
+                  return compact.toUpperCase();
+                })()}
               </option>
             ))}
           </select>
@@ -503,8 +549,14 @@ const DataTableWithAction = <T extends Record<string, any>>({
         <Box style={{ flex: '1 1 300px' }}>
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={serverMode ? serverSearch : searchQuery}
+            onChange={(e) => {
+              if (serverMode) {
+                onServerSearchChange?.(e.target.value);
+              } else {
+                setSearchQuery(e.target.value);
+              }
+            }}
             placeholder="Search: Name, Email)..."
             style={{
               padding: '0.5rem',
@@ -523,8 +575,15 @@ const DataTableWithAction = <T extends Record<string, any>>({
         </label>
         <select
           id="pageSize"
-          value={pageSize}
-          onChange={(e) => setPageSize(Number(e.target.value))}
+          value={serverMode ? (serverPerPage ?? pageSize) : pageSize}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            if (serverMode) {
+              onServerPerPageChange?.(next);
+            } else {
+              setPageSize(next);
+            }
+          }}
           style={{
             padding: '0.4rem 2rem 0.4rem 0.6rem',
             borderRadius: '5px',
@@ -547,8 +606,10 @@ const DataTableWithAction = <T extends Record<string, any>>({
         {/* Show filtered count */}
         <span style={{ marginLeft: '1rem', color: theme.colors.gray[6] }}>
           Showing {sortedAndFilteredData.length} of {data.length} records
-          {statusFilter !== 'all' && ` (filtered by: ${statusFilter.toUpperCase().replace(/_/g, ' ')})`}
-          {searchQuery && ` (search: "${searchQuery}")`}
+          {(serverMode ? serverStatus : statusFilter) !== 'all' &&
+            ` (filtered by: ${(serverMode ? serverStatus : statusFilter).toUpperCase().replace(/_/g, ' ')})`}
+          {(serverMode ? serverSearch : searchQuery) &&
+            ` (search: "${serverMode ? serverSearch : searchQuery}")`}
         </span>
       </Box>
 
@@ -556,13 +617,15 @@ const DataTableWithAction = <T extends Record<string, any>>({
       <MantineReactTable table={table} />
 
       {/* Custom Pagination */}
-      <Box style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
-        <Pagination
-          total={totalPages}
-          value={currentPage}
-          onChange={(page) => setCurrentPage(page)}
-        />
-      </Box>
+      {!hideLocalPagination && (
+        <Box style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+          <Pagination
+            total={totalPages}
+            value={currentPage}
+            onChange={(page) => setCurrentPage(page)}
+          />
+        </Box>
+      )}
     </div>
   );
 };

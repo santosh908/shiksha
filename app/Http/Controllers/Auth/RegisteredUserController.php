@@ -48,11 +48,9 @@ class RegisteredUserController extends Controller
         $registrationData = $this->registrationService->mapRequestToRegistrationData($data);
         $user = $this->registrationService->createUser($registrationData);
         $user->assignRole('Devotee');
-        $userType = $user->devotee_type;
-        if ($userType == "AD") {
-            return redirect()->route('register')->with('success', 'Your complete registration has been submitted successfully. Please wait for leader approval.');
-        } else {
-            return redirect()->route('register')->with('success', 'Your registration request has been successfully submitted. Please wait for approval.');
-        }
+        return redirect()->route('register')->with(
+            'success',
+            'Your registration has been submitted.'
+        );
     }
 }

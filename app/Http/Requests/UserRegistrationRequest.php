@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UserRegistrationRequest extends FormRequest
 {
@@ -22,15 +23,28 @@ class UserRegistrationRequest extends FormRequest
      */
     public function rules(): array
     {
-        $contactRules = 'required|string|min:10|max:15|regex:/^[1-9][0-9]{9,14}$/';
+        $resumableUser = $this->findResumableUser();
+
+        $contactRules = ['required', 'string', 'min:10', 'max:15', 'regex:/^[1-9][0-9]{9,14}$/'];
+        $emailRules = ['required', 'email', 'regex:/^[A-Za-z0-9._%+-]+@gmail\.com$/i'];
 
         // Only apply unique validation if relation_type is 'self'
         if ($this->input('relation_type') === 'self') {
-            $contactRules .= '|unique:users,contact_number';
+            $contactUnique = Rule::unique('users', 'contact_number');
+            if ($resumableUser) {
+                $contactUnique->ignore($resumableUser->id);
+            }
+            $contactRules[] = $contactUnique;
         }
 
+        $emailUnique = Rule::unique('users', 'email');
+        if ($resumableUser) {
+            $emailUnique->ignore($resumableUser->id);
+        }
+        $emailRules[] = $emailUnique;
+
         $rules = [
-            'email' => 'required|email|unique:users|regex:/^[A-Za-z0-9._%+-]+@gmail\.com$/i',
+            'email' => $emailRules,
             'name' => 'required|string|max:255',
             'Initiated_name' => 'nullable|string|max:255',
             'dob' => 'required|date|before:today|after_or_equal:1900-01-01',
@@ -49,6 +63,10 @@ class UserRegistrationRequest extends FormRequest
                         if (
                             User::where('email', $this->input('email'))
                                 ->where('contact_number', $this->input('contact_number'))
+                                ->where(function ($q) {
+                                    $q->where('profile_submitted', 'Y')
+                                        ->orWhere('account_approved', 'A');
+                                })
                                 ->exists()
                         ) {
                             $fail('A user with the same email and contact number has already registered.');
@@ -61,18 +79,18 @@ class UserRegistrationRequest extends FormRequest
             'MaritalStatus' => 'required|integer|exists:merital_status,id',
             'Profession' => 'required|integer|exists:profession,id',
             'SpiritualMaster' => 'required|string|max:255',
-            'JoinedSckon' => 'required|string|max:255',
+            'JoinedSckon' => 'required|date|before_or_equal:today|after_or_equal:1900-01-01',
             'CurrentAddress' => 'required|string|max:255',
             'Socity_Name' => 'nullable|string|max:255',
             'Sector_Area' => 'nullable|string|max:255',
-            'Pincode' => 'required|string|max:10',
+            'Pincode' => 'required|digits:6',
             'State' => 'required',
             'District' => 'required',
-            'NoOfChant' => 'nullable|string|max:50',
-            'ChantingStartDate' => 'nullable|string|max:255',
+            'NoOfChant' => 'nullable|integer|min:0|max:999',
+            'ChantingStartDate' => 'nullable|date|before_or_equal:today|after_or_equal:1900-01-01',
             'SpendTimeHearingLecture' => 'nullable|string|max:255',
             'ShastriDegree' => 'nullable|string|max:255',
-            'since_when_you_attending_ashray_classes' => 'nullable|string|max:255',
+            'since_when_you_attending_ashray_classes' => 'nullable|date|before_or_equal:today|after_or_equal:1900-01-01',
             'spiritual_master_you_aspiring' => 'nullable|string|max:255',
             'ashray_leader_code' => 'required',
             'Bhakti_BhikshukId' => 'nullable',
@@ -98,6 +116,30 @@ class UserRegistrationRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    private function findResumableUser(): ?User
+    {
+        $email = trim((string) $this->input('email', ''));
+        $contact = preg_replace('/\D/', '', (string) $this->input('contact_number', ''));
+        if ($email === '' || $contact === '') {
+            return null;
+        }
+
+        return User::query()
+            ->where('email', $email)
+            ->where('contact_number', $contact)
+            ->where('devotee_type', 'AD')
+            ->where(function ($q) {
+                $q->whereNull('profile_submitted')
+                    ->orWhere('profile_submitted', '!=', 'Y');
+            })
+            ->where(function ($q) {
+                $q->whereNull('account_approved')
+                    ->orWhereIn('account_approved', ['N', 'R']);
+            })
+            ->orderByDesc('id')
+            ->first();
     }
 
 

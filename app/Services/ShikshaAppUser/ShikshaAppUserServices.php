@@ -8,6 +8,7 @@ use App\Models\BhaktiBhekshuk;
 use App\Models\AsheryLeader;
 use App\Models\UserAssignAshrayLeader;
 use App\Services\UserQueryHandler;
+use App\Support\Auth\UserEffectivePermissionsCache;
 use Illuminate\Support\Facades\DB;
 
 class ShikshaAppUserServices
@@ -99,6 +100,8 @@ class ShikshaAppUserServices
             ]);
         }
 
+        UserEffectivePermissionsCache::forget($crUser->id);
+
         return $crUser;
     }
 
@@ -142,6 +145,8 @@ class ShikshaAppUserServices
         if ($request->has('permissions')) {
             $user->permissions()->sync($request['permissions']); // Sync permissions
         }
+
+        UserEffectivePermissionsCache::forget((int) $user->id);
 
         // Check user role to determine which model to update
         if ($user->hasRole('AsheryLeader')) {

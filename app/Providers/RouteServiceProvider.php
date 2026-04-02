@@ -24,7 +24,7 @@ class RouteServiceProvider extends ServiceProvider
 
     public const ROUTE_LIST = [
         "Devotee"=>[
-            'HOME' => '/Devotee/Registration',
+            'HOME' => '/Devotee/dashboard',
             'PRIORITY' => 1
         ],
         "AsheryLeader"=>[
@@ -79,9 +79,6 @@ class RouteServiceProvider extends ServiceProvider
 
         foreach (self::ROUTE_LIST as $role => $routes) {
             if ($user->hasRole($role)) {
-                if ($role === 'Devotee' && ($user->profile_submitted == 'N' || $user->profile_submitted == "")) {
-                    return '/Devotee/Registration';
-                }
                 return $routes['HOME'];
             }
         }

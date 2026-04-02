@@ -10,29 +10,31 @@ use App\Models\QuestionBank\QuestionBank;
 use App\Http\Requests\ExaminationStore\ExaminationRequest;
 use App\Http\Requests\ExaminationStore\ExamSessionRequest;
 use App\Http\Requests\ExaminationStore\SubmitQuestionRequest;
-use App\Http\Requests\ExaminationStore\SubmitExamRequest;
+use App\Application\DevoteeExam\DTOs\SaveExamAnswerData;
+use App\Models\Examination\ExamSessionModel;
+use App\Services\DevoteeExamApplicationService;
+use App\Services\ExamAdminApplicationService;
 use App\Services\Examination\ExaminationService;
 use App\Services\Question\QuestionBankService;
 use App\Models\ShikshaLevel;
 use App\Models\User;
-use App\Models\Examination\ExamSessionModel;
 use Illuminate\Http\RedirectResponse;
 use App\Services\EncryptionService\EncryptionServices;
 
 class ExaminationController extends Controller
 {
-    protected $ExaminationService;
-    protected $QuestionBankService;
-
-    public function __construct()
-    {
-        $this->ExaminationService = new ExaminationService();
-        $this->QuestionBankService = new QuestionBankService();
+    public function __construct(
+        protected ExaminationService $examinationService,
+        protected DevoteeExamApplicationService $devoteeExamApplicationService,
+        protected ExamAdminApplicationService $examAdminApplicationService,
+        protected QuestionBankService $questionBankService,
+    ) {
     }
 
     public function exam_session()
     {
-        $list = $this->ExaminationService->getExamSessionList();
+        $list = $this->examAdminApplicationService->listExamSessions();
+
         return Inertia::render('ExamSession/exam_session', [
             'ExamSessionList' => $list
         ]);
@@ -40,34 +42,41 @@ class ExaminationController extends Controller
 
     public function exam_session_store(ExamSessionRequest $request)
     {
-        $data = $request->validated();
-        $examSession = $this->ExaminationService->createExamSession($request);
+        $payload = $this->examSessionPayloadFromRequest($request);
+        $examSession = $this->examAdminApplicationService->createExamSession($payload);
+
         return redirect()->route('Action.exam_session_store')
             ->with('success', 'Exam Session Details Saved Successfully!')
             ->with('savedData', $examSession);
     }
 
-    public function session_edit(ExamSessionRequest $request)
+    public function session_edit(ExamSessionRequest $request, $ExamSession)
     {
-        $data = $request->validated();
-        $examSession = $this->ExaminationService->updateExamSession($request);
+        $payload = array_merge(
+            $this->examSessionPayloadFromRequest($request),
+            ['id' => $ExamSession]
+        );
+        $this->examAdminApplicationService->updateExamSession($payload);
+
         return redirect()->route('Action.ExamSession')->with('success', 'Exam session updated successfully!');
     }
 
     public function deleteExamSession($id)
     {
-        $examSession = $this->ExaminationService->deleteExamSession($id);
+        $this->examAdminApplicationService->deleteExamSession($id);
+
         return redirect()->route('Action.ExamSession')->with('success', 'Exam session seleted successfully!');
     }
 
     public function examination()
     {
-        $list = $this->ExaminationService->ExaminationList();
+        $list = $this->examAdminApplicationService->listExaminations();
         $shikshalevel = ShikshaLevel::where('is_active', 'Y')->get();
+
         return Inertia::render('SuperAdmin/examination', [
             'Examination' => $list,
             'shikshalevel' => $shikshalevel,
-            'ExamSession' => ExamSessionModel::All()->toArray()
+            'ExamSession' => $this->examAdminApplicationService->listExamSessions(),
         ]);
     }
 
@@ -76,8 +85,10 @@ class ExaminationController extends Controller
      */
     public function examinationStore(ExaminationRequest $request): RedirectResponse
     {
-        $data = $request->validated();
-        $examinationinfo = $this->ExaminationService->createExamination($request);
+        $examinationinfo = $this->examAdminApplicationService->createExamination(
+            $this->examinationPayloadFromRequest($request)
+        );
+
         return redirect()->route('Action.ExaminationStore')
             ->with('success', 'Examination Details Saved Successfully!')
             ->with('savedData', $examinationinfo);
@@ -86,11 +97,41 @@ class ExaminationController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(ExaminationRequest $request): RedirectResponse
+    public function update(ExaminationRequest $request, Examination $examination): RedirectResponse
     {
-        $data = $request->validated();
-        $examinationinfo = $this->ExaminationService->updateExamination($request);
+        $payload = array_merge(
+            $this->examinationPayloadFromRequest($request),
+            ['id' => $examination->id]
+        );
+        $this->examAdminApplicationService->updateExamination($payload);
+
         return redirect()->route('Action.examination')->with('success', 'Examination updated successfully!');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function examSessionPayloadFromRequest(ExamSessionRequest $request): array
+    {
+        $payload = $request->validated();
+        if ($request->has('session_start_date')) {
+            $payload['session_start_date'] = $request->input('session_start_date');
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function examinationPayloadFromRequest(ExaminationRequest $request): array
+    {
+        $payload = $request->validated();
+        if ($request->has('remarks')) {
+            $payload['remarks'] = $request->input('remarks');
+        }
+
+        return $payload;
     }
 
     /**
@@ -120,9 +161,9 @@ class ExaminationController extends Controller
 
     public function TakeExam($examID)
     {
-        $decodedId = base64_decode($examID);
-        $examDetails = $this->ExaminationService->ExamDetailsById($decodedId);
-        //dd($examDetails);
+        $decodedId = (int) base64_decode($examID);
+        $examDetails = $this->devoteeExamApplicationService->getExamIntroDetails($decodedId);
+
         return Inertia::render('Devotee/TakeExam', [
             'examDetails' => $examDetails
         ]);
@@ -131,56 +172,50 @@ class ExaminationController extends Controller
     public function StartExam($examID)
     {
         session(['current_exam_id' => $examID]);
-        $decodedId = base64_decode($examID);
-        $exam=$this->ExaminationService->DevoteeExamDetailsById($decodedId);
-        //dd($exam);
-        if($exam[0]['is_submitted']==1)
-        {
+        $decodedId = (int) base64_decode($examID);
+        $exam = $this->devoteeExamApplicationService->getDevoteeExamSessionState($decodedId);
+        if ($exam[0]['is_submitted'] == 1) {
             return redirect()->route('PromotedLavel');
         }
-        else{
-            return Inertia::render('Devotee/StartExam', [
-                'QuestionList' => $this->QuestionBankService->QuestionByExamId($decodedId),
-                'ExamDetails' =>$exam
-            ]);
-        }
+
+        return Inertia::render('Devotee/StartExam', [
+            'QuestionList' => $this->questionBankService->QuestionByExamId($decodedId),
+            'ExamDetails' => $exam
+        ]);
     }
- 
+
     public function SaveFinalizeExam(Request $request)
     {
-        $exam=$this->ExaminationService->DevoteeExamDetailsById($request->examId);
-        if($exam[0]['is_submitted']==1)
-        {
-            return redirect()->route('PromotedLavel');
-        }
-        else if($request->examId==null)
-        {
+        if ($request->examId == null) {
             return redirect()->route('Devotee.AfterExamSubmission')->with('success', 'Final submission could not saved, please contact to Admin!');
         }
-        else{
-            $examinationinfo = $this->ExaminationService->SubmitExam($request);
-            return redirect()->route('Devotee.AfterExamSubmission')->with('success', 'You have submited your successfully!');
+        $examId = (int) $request->examId;
+        $exam = $this->devoteeExamApplicationService->getDevoteeExamSessionState($examId);
+        if ($exam[0]['is_submitted'] == 1) {
+            return redirect()->route('PromotedLavel');
         }
+        $this->devoteeExamApplicationService->finalizeExam($examId);
+
+        return redirect()->route('Devotee.AfterExamSubmission')->with('success', 'You have submited your successfully!');
     }
 
     public function SubmitQuestion(SubmitQuestionRequest $request)
     {
-        $exam=$this->ExaminationService->DevoteeExamDetailsById($request->examId);
-        if($exam[0]['is_submitted']==1)
-        {
+        $exam = $this->devoteeExamApplicationService->getDevoteeExamSessionState($request->examId);
+        if ($exam[0]['is_submitted'] == 1) {
             return redirect()->route('PromotedLavel');
         }
-        $validatedData = $request->validated();
-        $examinationinfo = $this->ExaminationService->SaveSingleQuestion($request);
+        $this->devoteeExamApplicationService->saveAnswer(SaveExamAnswerData::fromValidated($request->validated()));
+
         return Inertia::render('Devotee/StartExam', [
-            'QuestionList' => $this->QuestionBankService->QuestionByExamId($request->examId),
-            'ExamDetails' => $this->ExaminationService->ExamDetailsById($request->examId)
+            'QuestionList' => $this->questionBankService->QuestionByExamId($request->examId),
+            'ExamDetails' => $this->devoteeExamApplicationService->getExamIntroDetails($request->examId)
         ]);
     }
 
     public function AllowDevotteToTakeExam()
     {
-        $shikshalevel = $this->ExaminationService->getExamListToAllowDevotee();
+        $shikshalevel = $this->examinationService->getExamListToAllowDevotee();
         //dd($shikshalevel);
         $loginid = User::where('devotee_type', 'AD')->get();
         return Inertia::render('SuperAdmin/allowExam', [
@@ -196,7 +231,7 @@ class ExaminationController extends Controller
             'exam_id' => 'required',
             'user_id' => 'required',
         ]);
-        $success = $this->ExaminationService->allowUserToRetakeExam($request);
+        $success = $this->examinationService->allowUserToRetakeExam($request);
     
         if ($success) {
             return back()->with('success', 'User allowed to retake the exam.');
@@ -223,9 +258,9 @@ class ExaminationController extends Controller
     {
         $level = explode('_', EncryptionServices::decrypt($encryptedLevel))[0];
         $session = explode('_', EncryptionServices::decrypt($encryptedSession))[0];
-        $shikshalevel = $this->ExaminationService->getShikshaLevelList();
-        $examinationsessionlist = $this->ExaminationService->getExaminationSessionList();
-        $list = ($level && $session) ? $this->ExaminationService->getVerifyExamList($level, $session) : [];
+        $shikshalevel = $this->examinationService->getShikshaLevelList();
+        $examinationsessionlist = $this->examinationService->getExaminationSessionList();
+        $list = ($level && $session) ? $this->examinationService->getVerifyExamList($level, $session) : [];
         return Inertia::render('SuperAdmin/verifyexamlist', [
             'submittedexam' => $list,
             'shikshalevel' => $shikshalevel,
@@ -235,10 +270,10 @@ class ExaminationController extends Controller
 
     public function updatemarks($sessionID = null, $levelID = null, $loginId = null)
     {
-        $shikshalevel = $this->ExaminationService->getShikshaLevelList();
-        $loginid = $this->ExaminationService->getLoginIdList();
-        $sessionList= $this->ExaminationService->getExaminationSessionList();
-        $list = ($sessionID && $levelID && $loginId) ? $this->ExaminationService->getSessionResultList($sessionID, $levelID, $loginId) : [];
+        $shikshalevel = $this->examinationService->getShikshaLevelList();
+        $loginid = $this->examinationService->getLoginIdList();
+        $sessionList= $this->examinationService->getExaminationSessionList();
+        $list = ($sessionID && $levelID && $loginId) ? $this->examinationService->getSessionResultList($sessionID, $levelID, $loginId) : [];
         return Inertia::render('SuperAdmin/updatemarks', [
             'devoteeResults' => $list,
             'shikshalevel' => $shikshalevel,
@@ -256,7 +291,7 @@ class ExaminationController extends Controller
             'total_obtain' => 'required|numeric',
         ]);
 
-        $updatemarks = $this->ExaminationService->updateMarks(
+        $updatemarks = $this->examinationService->updateMarks(
             $validated['exam_id'],
             $validated['exam_level'],
             $validated['login_id'],

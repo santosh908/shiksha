@@ -13,15 +13,25 @@ Route::get('/dashboard', function () {
     return Inertia::render('Devotee/dashboard');
 });
 
-Route::get('/Registration', [PostRegistrationUserController::class, 'index']);
+/*
+|--------------------------------------------------------------------------
+| Legacy multi-step registration (retired — Phase 5)
+| Full profile is collected once at /register. These URLs redirect so old
+| bookmarks and posts do not hit obsolete wizard endpoints.
+|--------------------------------------------------------------------------
+*/
+$legacyRegistrationRedirect = static function () {
+    return redirect()->to('/Devotee/dashboard')->with(
+        'info',
+        'Registration is completed in one step when you sign up. Use Profile or Registration summary if you need to review your details.'
+    );
+};
 
-Route::post('/PersonalInformation', [PostRegistrationUserController::class, 'storePersonalInfo']);
-
-Route::Post('/ProfessionalInfo', [PostRegistrationUserController::class, 'StoreProfessionalInfo']);
-
-Route::Post('/HearingReading', [PostRegistrationUserController::class, 'StoreHearingReading']);
-
-Route::Post('/DevoteeSeminar', [PostRegistrationUserController::class, 'StoreDevoteeSeminar']);
+Route::get('/Registration', $legacyRegistrationRedirect)->name('devotee.registration.legacy');
+Route::post('/PersonalInformation', $legacyRegistrationRedirect);
+Route::post('/ProfessionalInfo', $legacyRegistrationRedirect);
+Route::post('/HearingReading', $legacyRegistrationRedirect);
+Route::post('/DevoteeSeminar', $legacyRegistrationRedirect);
 
 Route::Get('/ShikshaLavel', [DevoteeExamLavelController::class, 'getDevoteeExamLavel']);
 

@@ -19,11 +19,8 @@ export default function DevoteeResultListComponent() {
   const { name: UserName, login_id: LoginID,roles:roleName } = useUserStore();
 
 
-  React.useEffect(() => {
-    if (flash?.success) {
-      alert(flash.success);
-    }
-  }, [flash]);
+  // Intentionally no window alert here.
+  // Inertia flash messages are already shown as non-blocking top-right notifications.
 
   const PAGE_SIZE = 10;
   const uniqueShikshaLevels = [1, 2, 3, 4, 5, 6, 7];

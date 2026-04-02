@@ -7,11 +7,12 @@ import { AppShell, Container, useMantineTheme } from '@mantine/core';
 import { useDisclosure, useMediaQuery } from '@mantine/hooks';
 import React, { useEffect } from 'react';
 import { showNotification } from '@mantine/notifications';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconInfoCircle, IconCircleCheck } from '@tabler/icons-react';
 
 type FlashMessages = {
   error?: string;
   success?: string;
+  info?: string;
 };
 
 type PageProps = {
@@ -52,6 +53,38 @@ function Dashboard({ children }: DashboardProps) {
       props.flash.error = null; 
     }
   }, [props.flash?.error]);
+
+  useEffect(() => {
+    if (props.flash?.success) {
+      showNotification({
+        title: 'Success',
+        message: props.flash.success,
+        withBorder: true,
+        autoClose: 8000,
+        position: 'top-right',
+        color: 'teal',
+        icon: <IconCircleCheck size={16} />,
+      });
+      //@ts-ignore
+      props.flash.success = null;
+    }
+  }, [props.flash?.success]);
+
+  useEffect(() => {
+    if (props.flash?.info) {
+      showNotification({
+        title: 'Notice',
+        message: props.flash.info,
+        withBorder: true,
+        autoClose: 12000,
+        position: 'top-right',
+        color: 'blue',
+        icon: <IconInfoCircle size={16} />,
+      });
+      //@ts-ignore
+      props.flash.info = null;
+    }
+  }, [props.flash?.info]);
 
   return (
     <GeneralUserLayout>

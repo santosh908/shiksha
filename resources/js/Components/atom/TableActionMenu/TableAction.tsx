@@ -23,83 +23,35 @@ function TableAction({ row }: ActionsMenuProps) {
   const handleApprove = () => {
     const idVal = row.ProfilePrID ?? row.user_id ?? row.userId ?? row.id ?? '';
     const encodedId = idVal !== '' ? btoa(String(idVal)) : '';
-    modals.openConfirmModal({
-      title: 'Confirm Approval',
-      children: <Text size="sm">Are you sure you want to approve.?</Text>,
-      labels: { confirm: 'Approve', cancel: 'Cancel' },
-      onConfirm: () => {
-        let approveUrl = `/ApproveDevotee/${encodedId}`;
-        if (RoleName.includes('SuperAdmin') || RoleName.includes('Admin')) {
-          approveUrl = `/Action/ApproveDevotee/${encodedId}`;
-        } else if (RoleName.includes('AsheryLeader')) {
-          approveUrl = `/Action/ApproveDevotee/${encodedId}`;
-        } else if (RoleName.includes('BhaktiVriksha')) {
-          approveUrl = `/Action/ApproveDevotee/${encodedId}`;
-        }
-        setPageLoading(true);       // ✅ start page loader
-        modals.closeAll();
-        router.put(
-          approveUrl,
-          {},
-          {
-            onSuccess: () => {
-              modals.closeAll();
-              setPageLoading(false);
-            },
-            onError: () => {
-            setPageLoading(false);
-          },
-          }
-        );
-      },
-      onCancel: () => {
-        modals.closeAll();
-      },
-      onClose: () => {
-        modals.closeAll();
-      },
-    });
-  };
+    let approveUrl = `/ApproveDevotee/${encodedId}`;
+    if (RoleName.includes('SuperAdmin') || RoleName.includes('Admin')) {
+      approveUrl = `/Action/ApproveDevotee/${encodedId}`;
+    } else if (RoleName.includes('AsheryLeader')) {
+      approveUrl = `/Action/ApproveDevotee/${encodedId}`;
+    } else if (RoleName.includes('BhaktiVriksha')) {
+      approveUrl = `/Action/ApproveDevotee/${encodedId}`;
+    }
 
-  const handleReject = (row: any, onReject: (row: any, reason: string) => void) => {
-    let rejectionReason = '';
-
-    modals.open({
-      title: 'Confirm Rejection',
-      children: (
-        <>
-          <Text size="sm">Please provide a reason for rejection:</Text>
-          <TextInput
-            mt="sm"
-            placeholder="Reason for rejection"
-            onChange={(event) => {
-              rejectionReason = event.currentTarget.value;
-            }}
-          />
-          <Group mt="md">
-            <Button onClick={() => modals.closeAll()} variant="outline" color="gray">
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                onReject(row, rejectionReason);
-                modals.closeAll();
-              }}
-              color="red"
-            >
-              Reject
-            </Button>
-          </Group>
-        </>
-      ),
-      onClose: () => {
-        modals.closeAll();
-      },
-    });
+    setPageLoading(true);
+    router.put(
+      approveUrl,
+      {},
+      {
+        onSuccess: () => {
+          setPageLoading(false);
+          router.reload();
+        },
+        onError: () => {
+          setPageLoading(false);
+        },
+      }
+    );
   };
 
   const handleRejectAction = (row: any, reason: any) => {
-    const idVal =  row.user_id;
+    // Backend expects professional_information.id (ProfilePrID in this view),
+    // not the users.id.
+    const idVal = row.ProfilePrID ?? row.user_id ?? row.userId ?? row.id ?? '';
     const encodedId = idVal !== '' ? btoa(String(idVal)) : '';
     let approveUrl = `/RejectDevotee/${encodedId}`;
     if (RoleName.includes('SuperAdmin') || RoleName.includes('Admin')) {
@@ -110,14 +62,13 @@ function TableAction({ row }: ActionsMenuProps) {
       approveUrl = `/Action/RejectDevotee/${encodedId}`;
     }
     setPageLoading(true);       // ✅ start page loader
-    modals.closeAll();
     router.put(
       approveUrl,
-      { remarks: reason },
+      { remarks: reason ?? '' },
       {
         onSuccess: () => {
-          modals.closeAll();
            setPageLoading(false);
+          router.reload();
         },
         onError: () => {
           setPageLoading(false);
@@ -196,7 +147,7 @@ function TableAction({ row }: ActionsMenuProps) {
     );
 
     const RejectLink = () => (
-      <Menu.Item onClick={() => handleReject(row, handleRejectAction)}>
+      <Menu.Item onClick={() => handleRejectAction(row, '')}>
         <Box style={{ display: 'inline-flex', alignItems: 'center' }}>
           <IconX color="red" style={{ marginRight: 8 }} size={14} /> Reject
         </Box>

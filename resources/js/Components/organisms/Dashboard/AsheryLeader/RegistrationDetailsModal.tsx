@@ -13,10 +13,21 @@ interface DetailsModalProps {
 const DetailsModal: React.FC<DetailsModalProps> = ({ opened, onClose, data }) => {
   
   const dateFormate = (dateString: string) => {
-    const dt = dateString; // The date string
+    if (!dateString) return '';
+    const dt = dateString;
     const cDt = new Date(dt);
+    if (Number.isNaN(cDt.getTime())) return '';
     const cDate = cDt.toLocaleDateString('en-GB');
     return cDate;
+  };
+
+  const pickFirst = (...values: any[]) => {
+    for (const value of values) {
+      if (value !== null && value !== undefined && String(value).trim() !== '') {
+        return value;
+      }
+    }
+    return '';
   };
   
   return (
@@ -108,13 +119,13 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ opened, onClose, data }) =>
                 <Table.Td>
                   <strong>How Many Rounds You Chant</strong>
                 </Table.Td>
-                <Table.Td>{data.how_many_rounds_you_chant==null ? '' : data?.how_many_rounds_you_chant}</Table.Td>
+                <Table.Td>{pickFirst(data?.how_many_rounds_you_chant, data?.NoOfChant)}</Table.Td>
               </Table.Tr>
               <Table.Tr>
                 <Table.Td>
                   <strong>Since when are you chanting above rounds</strong>
                 </Table.Td>
-                <Table.Td>{dateFormate(data?.when_are_you_chantin)}</Table.Td>
+                <Table.Td>{dateFormate(pickFirst(data?.when_are_you_chantin, data?.ChantingStartDate))}</Table.Td>
               </Table.Tr>
               <Table.Tr>
                 <Table.Td colSpan={2}>
@@ -181,13 +192,13 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ opened, onClose, data }) =>
                 <Table.Td>
                   <strong>Spend Everyday Hearing Lectures</strong>
                 </Table.Td>
-                <Table.Td>{dateFormate(data.spend_everyday_hearing_lectures==null ? '' : data?.spend_everyday_hearing_lectures)}</Table.Td>
+                <Table.Td>{data.spend_everyday_hearing_lectures == null ? '' : data?.spend_everyday_hearing_lectures}</Table.Td>
               </Table.Tr>
               <Table.Tr>
                 <Table.Td>
                   <strong>Bakti Shastri Degree</strong>
                 </Table.Td>
-                <Table.Td>{data.bakti_shastri_degree==null ? '' : data?.bakti_shastri_degree}</Table.Td>
+                <Table.Td>{pickFirst(data?.bakti_shastri_degree, data?.bhakti_shastri_degree, data?.ShastriDegree)}</Table.Td>
               </Table.Tr>
               <Table.Tr>
                 <Table.Td>
@@ -199,13 +210,13 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ opened, onClose, data }) =>
                 <Table.Td>
                   <strong>Since When You Attending Ashray Class</strong>
                 </Table.Td>
-                <Table.Td>{dateFormate(data?.SkconJoinDate)}</Table.Td>
+                <Table.Td>{dateFormate(pickFirst(data?.since_when_you_attending_ashray_classes, data?.SkconJoinDate))}</Table.Td>
               </Table.Tr>
               <Table.Tr>
                 <Table.Td>
                   <strong>Spiritual Master You Aspiring</strong>
                 </Table.Td>
-                <Table.Td>{data.spiritual_master_you_aspiring==null ? '' : data?.spiritual_master_you_aspiring}</Table.Td>
+                <Table.Td>{pickFirst(data?.spiritual_master_you_aspiring)}</Table.Td>
               </Table.Tr>
               <Table.Tr>
                 <Table.Td>

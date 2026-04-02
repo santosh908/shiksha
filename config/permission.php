@@ -183,4 +183,10 @@ return [
 
         'store' => 'default',
     ],
+
+    /*
+     * TTL (seconds) for per-user permission name lists shared with Inertia (see EffectivePermissionsService).
+     * Set to 0 to disable caching. Cache keys are cleared when roles/permissions are updated in key services.
+     */
+    'inertia_effective_permissions_ttl' => (int) env('INERTIA_EFFECTIVE_PERMISSIONS_TTL', 300),
 ];
