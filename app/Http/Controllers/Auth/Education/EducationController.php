@@ -7,21 +7,19 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Education;
 use App\Http\Requests\EducationStore\EducationRequest;
-use App\Services\Education\EducationService;
+use App\Services\AdminCatalogApplicationService;
 use Illuminate\Http\RedirectResponse;
 
 class EducationController extends Controller
 {
-    protected $EducationService;
-
-    public function __construct()
-    {
-        $this->EducationService = new EducationService();
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function education()
     {
-        $list = $this->EducationService->EducationList();
+        $list = $this->adminCatalogApplicationService->listEducation();
         return Inertia::render('SuperAdmin/education', $list);
     }
 
@@ -30,7 +28,7 @@ class EducationController extends Controller
     {
         //dd($request->all());
         $data = $request->validated();
-        $educationinfo = $this->EducationService->createEducation($request);
+        $educationinfo = $this->adminCatalogApplicationService->createEducation($request);
         return redirect()->route('Action.EducationStore')
             ->with('success', 'Education Details Saved Successfully!')
             ->with('savedData', $educationinfo);
@@ -38,7 +36,7 @@ class EducationController extends Controller
 
     public function destroy($id)
     {
-        $educationinfo = $this->EducationService->deleteEducation($id);
+        $educationinfo = $this->adminCatalogApplicationService->deleteEducation($id);
         if ($educationinfo) {
             return redirect()->back()->with('success', 'Education deleted successfully');
         } else {
@@ -49,7 +47,7 @@ class EducationController extends Controller
     public function update(EducationRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $educationinfo = $this->EducationService->updateEducation($request);
+        $educationinfo = $this->adminCatalogApplicationService->updateEducation($request);
         return redirect()->route('Action.education')->with('success', 'Education updated successfully!');
     }
 }

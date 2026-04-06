@@ -46,7 +46,7 @@ function ForgotPassword(){
 
   return (
     <GuestNonLandingLayout pageTitle="Forgot Password">
-      <Box style={{ width: 'min(500px,90%)', height:'290px'}} className="overflow-hidden border rounded-lg ">
+      <Box mx="auto" style={{ width: 'min(500px,90%)', height:'290px'}} className="overflow-hidden border rounded-lg ">
       <Box>
         {showNotification && (
           <Notification

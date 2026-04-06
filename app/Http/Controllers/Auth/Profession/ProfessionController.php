@@ -6,29 +6,27 @@ use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Requests\ProfessionStore\ProfessionStoreRequest;
-use App\Services\Profession\ProfessionService;
+use App\Services\AdminCatalogApplicationService;
 use App\Models\Profession;
 use Illuminate\Http\RedirectResponse;
 
 class ProfessionController extends Controller
 {
-    protected $ProfessionService;
-    
-    public function __construct(ProfessionService $ProfessionService)
-    {
-        $this->ProfessionService = $ProfessionService; // Inject the service via the constructor
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function profession()
     {   
-        $list = $this->ProfessionService->ProfessionList();
+        $list = $this->adminCatalogApplicationService->listProfessions();
         return Inertia::render('SuperAdmin/profession', $list);
     }
 
     public function professionStore(ProfessionStoreRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $professionInfo = $this->ProfessionService->createProfession($data); // Pass validated data directly
+        $professionInfo = $this->adminCatalogApplicationService->createProfession($data);
         return redirect()->route('Action.profession') 
                      ->with('success', 'Profession Details Saved Successfully!')
                      ->with('savedData', $professionInfo);
@@ -39,7 +37,7 @@ class ProfessionController extends Controller
         //$profession->delete();
         //return redirect()->back()->with('success', 'Profession deleted successfully');
 
-        $professioninfo = $this->ProfessionService->deleteProfession($id);
+        $professioninfo = $this->adminCatalogApplicationService->deleteProfession($id);
 
         if($professioninfo)
         {
@@ -53,7 +51,7 @@ class ProfessionController extends Controller
     public function update(ProfessionStoreRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $professioninfo = $this->ProfessionService->updateProfession($request);
+        $professioninfo = $this->adminCatalogApplicationService->updateProfession($request);
         return redirect()->route('Action.profession')->with('success', 'Profession updated successfully!');
     }
 

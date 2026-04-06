@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Application\DevoteeProfileAdmin\DTOs\UpdatePersonalInfoData;
+use App\Application\DevoteeProfileAdmin\DTOs\UpdateSpiritualInfoOneData;
+use App\Application\DevoteeProfileAdmin\DTOs\UpdateSpiritualInfoThreeData;
+use App\Application\DevoteeProfileAdmin\DTOs\UpdateSpiritualInfoTwoData;
 use App\Http\Requests\Devotee\StoreCompleteRegistraionRequest;
 use App\Http\Requests\Devotee\StoreSuperAdminDevoteeRegisration;
 use App\Http\Requests\Devotee\StoreProfessionalInfo;
 use App\Http\Requests\Devotee\StoreHearingReading;
 use App\Http\Requests\Devotee\StoreDevoteeSeminar;
 use App\Services\DevoteeApprovalService;
+use App\Services\DevoteeProfileAdminApplicationService;
 use App\Services\PostRegistraion\PostRegistraionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
@@ -18,18 +23,20 @@ use App\Jobs\DevoteeApprovedJob;
 use App\Jobs\DevoteeRejectedJob;
 use Illuminate\Support\Facades\Auth;
 use App\Models\ProfessionalInformation;
-use App\Models\User;
 use App\Models\RaiseQuery\RaiseQuery;
 use App\Http\Requests\DevoteeRaiseQuery\RaiseQueryRequest;
 use App\Http\Requests\DevoteeRaiseQuery\Devoteeraisequeryrequest;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Validator;
 
 class PostRegistrationUserController extends Controller
 {
     protected $postRegistrationService;
     protected $devoteeApprovalService;
-    public function __construct(PostRegistraionService $postRegistrationService, DevoteeApprovalService $devoteeApprovalService)
+    public function __construct(
+        PostRegistraionService $postRegistrationService,
+        DevoteeApprovalService $devoteeApprovalService,
+        private readonly DevoteeProfileAdminApplicationService $devoteeProfileAdminApplicationService
+    )
     {
         $this->postRegistrationService = $postRegistrationService;
         $this->devoteeApprovalService = $devoteeApprovalService;
@@ -242,7 +249,7 @@ class PostRegistrationUserController extends Controller
     public function SuperAdminGetDevoteeDetails($id)
     {
         $decodedId = base64_decode($id);
-        $masterData = $this->postRegistrationService->getDevoteeDtails($decodedId);
+        $masterData = $this->devoteeProfileAdminApplicationService->getDevoteeDetails((int) $decodedId);
         return Inertia::render('SuperAdmin/DevoteeRegisrationPage', [
             'masterData' => $masterData,
         ]);
@@ -251,7 +258,7 @@ class PostRegistrationUserController extends Controller
     public function SuperAdminGetPartiallDevoteeDetails($id)
     {
         $decodedId = base64_decode($id);
-        $masterData = $this->postRegistrationService->getPartiallDevoteeDtails($decodedId);
+        $masterData = $this->devoteeProfileAdminApplicationService->getPartialDevoteeDetails((int) $decodedId);
         //dd($masterData);
         return Inertia::render('SuperAdmin/DevoteeRegisrationPage', [
             'masterData' => $masterData,
@@ -260,72 +267,44 @@ class PostRegistrationUserController extends Controller
 
     public function SuperAdminUpdatePersonalInfo(StoreSuperAdminDevoteeRegisration $request)
     {
-        $user = User::findOrFail($request->userId);
-
-        $relationType = $request->input('relation_type');
-        $emailRule = 'required|email|regex:/^[A-Za-z0-9._%+-]+@gmail\.com$/i';
-
-        // email validation: unique only if changed
-        if ($request->input('email') !== $user->email) {
-            $emailRule .= '|unique:users,email';
-        }
-
-        // Base contact number rule
-        $contactNumberRule = 'required|string|min:10|max:15|regex:/^[1-9][0-9]{9,14}$/';
-
-        if ($relationType === 'self') {
-            // For self → must be unique, except if linked to deactivated user
-            if ($request->input('contact_number') !== $user->contact_number) {
-                $cNumber = $request->input('contact_number');
-                if (! $cNumber || User::where('contact_number', $cNumber)->where('account_approved', '!=', 'D')->exists()) {
-                    return redirect()->back()->withErrors(['contact_number' => 'The contact number has already been taken.'])->withInput();
-                }
-            }
-        } elseif ($relationType === 'relative') {
-            $relativeLoginId = $request->input('relative_login_id');
-            if (!$relativeLoginId || !User::where('login_id', $relativeLoginId)->exists()) {
-                return redirect()->back()->withErrors(['relative_login_id' => 'No such loign id exists.'])->withInput();
-            }
-        }
-
-        $validator = Validator::make($request->all(), [
-            'email' => $emailRule,
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
-        if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
-        }
-
-        //dd($request);
-        $data = $request->validated();
-        $personalinfo = $this->postRegistrationService->SuperAdminUpdatePersonalInfo($request);
+        $dto = UpdatePersonalInfoData::fromArray($request->all());
+        $this->devoteeProfileAdminApplicationService->updatePersonalInfo($dto);
         session()->put('notification', "Personal Information has been updated successfully!");
         return redirect()->back()->with('success', 'Personal Information has been updated successfully!');
     }
 
     public function SuperAdminUpdateSpritualInfoOne(StoreProfessionalInfo $request)
     {
-        $perInfo = $request->validated();
-        $Professional = $this->postRegistrationService->SuperAdminUpdateSpritualInfoOne($request);
+        $payload = array_merge($request->validated(), [
+            'profileId' => $request->input('profileId'),
+            'userId' => $request->input('userId'),
+        ]);
+        $dto = UpdateSpiritualInfoOneData::fromArray($payload);
+        $this->devoteeProfileAdminApplicationService->updateSpiritualInfoOne($dto);
         session()->put('notification', "Spritual Information 1 has been updated successfully!");
         return redirect()->back()->with('success', 'Spritual Information 1 has been updated successfully!');
     }
 
     public function SuperAdminUpdateSpritualInfoTwo(StoreHearingReading $request)
     {
-        $hr = $request->validated();
-        $hearingReading = $this->postRegistrationService->SuperAdminUpdateSpritualInfoTwo($request);
+        $payload = array_merge($request->validated(), [
+            'profileId' => $request->input('profileId'),
+        ]);
+        $dto = UpdateSpiritualInfoTwoData::fromArray($payload);
+        $this->devoteeProfileAdminApplicationService->updateSpiritualInfoTwo($dto);
         session()->put('notification', "Spritual Information 2 has been updated successfully!");
         return redirect()->back()->with('success', 'Spritual Information 2 has been updated successfully!');
     }
 
     public function SuperAdminUpdateSpritualInfoThree(StoreDevoteeSeminar $request)
     {
-        $hr = $request->validated();
-        $hearingReading = $this->postRegistrationService->SuperAdminUpdateSpritualInfoThree($request);
+        $payload = array_merge($request->validated(), [
+            'profileId' => $request->input('profileId'),
+            'userId' => $request->input('userId'),
+            'Bhakti_BhikshukId' => $request->input('Bhakti_BhikshukId'),
+        ]);
+        $dto = UpdateSpiritualInfoThreeData::fromArray($payload);
+        $this->devoteeProfileAdminApplicationService->updateSpiritualInfoThree($dto);
         session()->put('notification', "Spritual Information 3 has been updated successfully!");
         return redirect()->back()->with('success', 'Spritual Information 3 has been updated successfully!');
     }

@@ -26,7 +26,7 @@ function Login({ errors }: any) {
 
   return (
     <GuestNonLandingLayout pageTitle="Login">
-      <Box style={{ width: 'min(500px,90%)' }} className="overflow-hidden border rounded-lg ">
+      <Box mx="auto" style={{ width: 'min(500px,90%)' }} className="overflow-hidden border rounded-lg ">
         {/* login page  */}
         <Flex p="xl" style={{ background: "url('/flower.png')", backgroundPositionY: 'center' }} direction="column" gap="sm">
           <Title order={3} mb="sm" className="text-center underline" style={{ color: theme.colors.gray[9] }}>

@@ -5,22 +5,20 @@ use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Requests\MeritalStatuStore\MeritalStatusRequest;
-use App\Services\MeritalStatus\MeritalStatusService;
+use App\Services\AdminCatalogApplicationService;
 use Illuminate\Http\RedirectResponse;
 use App\Models\MeritalStatus;
 
 class MeritalstatusController extends Controller
 {
-    protected $MeritalStatusService;
-
-    public function __construct()
-    {
-        $this->MeritalStatusService = new MeritalStatusService();
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function meritalstatus()
     {   
-        $list = $this->MeritalStatusService->MeritalStatusList();
+        $list = $this->adminCatalogApplicationService->listMeritalStatus();
         return Inertia::render('SuperAdmin/meritalstatus', $list);
     }
 
@@ -28,7 +26,7 @@ class MeritalstatusController extends Controller
     {
         $data= $request->validated();
 		
-        $meritalstatusinfo =  $this->MeritalStatusService->createMeritalstatus($request);
+        $meritalstatusinfo =  $this->adminCatalogApplicationService->createMeritalStatus($request);
         return redirect()->route('Action.MeritalStatusStore') 
                      ->with('success', 'MeritalStatus Details Saved Successfully!')
                      ->with('savedData', $meritalstatusinfo);
@@ -36,7 +34,7 @@ class MeritalstatusController extends Controller
 
     public function destroy($id): RedirectResponse
     {
-        $meritalstatusinfo = $this->MeritalStatusService->deleteMeritalStatus($id);
+        $meritalstatusinfo = $this->adminCatalogApplicationService->deleteMeritalStatus($id);
         if($meritalstatusinfo)
         {
             return redirect()->back()->with('success', 'MeritalStatus deleted successfully');
@@ -49,7 +47,7 @@ class MeritalstatusController extends Controller
     public function update(MeritalStatusRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $meritalstatusinfo = $this->MeritalStatusService->updateMeritalStatus($request);
+        $meritalstatusinfo = $this->adminCatalogApplicationService->updateMeritalStatus($request);
         return redirect()->route('Action.meritalstatus')->with('success', 'MeritalStatus updated successfully!');
     }
 }

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth\AsheryLeader;
 use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AsheryLeader\AsheryLeaderRequest;
-use App\Services\AshreyLeader\AshreyLeadeServices;
+use App\Services\AdminCatalogApplicationService;
 use Illuminate\Http\RedirectResponse;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,23 +12,21 @@ use Illuminate\Support\Facades\Validator;
 
 class AsheryLeaderController extends Controller
 {
-    protected $AshreyLeadeServices;
-
-    public function __construct()
-    {
-        $this->AshreyLeadeServices = new AshreyLeadeServices();
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function asheryleader()
     {
-        $list = $this->AshreyLeadeServices->AsheryLeaderList();
+        $list = $this->adminCatalogApplicationService->listAsheryLeaders();
         return Inertia::render('SuperAdmin/asheryleader', $list);
     }
 
     public function asheryleaderStore(AsheryLeaderRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $asheryleaderinfo = $this->AshreyLeadeServices->createAsheryLeader($request);
+        $asheryleaderinfo = $this->adminCatalogApplicationService->createAsheryLeader($request);
         return redirect()->route('Action.AsheryLeaderStore')
             ->with('success', 'Ashery Leader Details Saved Successfully!')
             ->with('savedData', $asheryleaderinfo);
@@ -70,7 +68,7 @@ class AsheryLeaderController extends Controller
         if ($validator->fails()) {
             return redirect()->back()->withErrors($validator)->withInput();
         }
-        $asheryleaderinfo = $this->AshreyLeadeServices->updateAsheryLeader($request);
+        $asheryleaderinfo = $this->adminCatalogApplicationService->updateAsheryLeader($request);
         return redirect()->route('Action.asheryleader')
             ->with('success', 'Ashery Leader Details Updated Successfully!')
             ->with('savedData', $asheryleaderinfo);
@@ -78,7 +76,7 @@ class AsheryLeaderController extends Controller
 
     public function destroy($id)
     {
-        $asheryleaderinfoinfo = $this->AshreyLeadeServices->deleteAsheryLeader($id);
+        $asheryleaderinfoinfo = $this->adminCatalogApplicationService->deleteAsheryLeader($id);
         if ($asheryleaderinfoinfo) {
             return redirect()->back()->with('success', 'AsheryLeader deleted successfully');
         } else {

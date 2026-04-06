@@ -6,18 +6,15 @@ use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use App\Services\SuperAdminDashboard\SuperAdminDashboardService;
+use App\Services\SuperAdminDashboardApplicationService;
 use Illuminate\Http\Request;
-use App\Models\Examination\Examination;
-use App\Models\Examination\ExamSessionModel;
-use App\Models\ExamLavelCompleted;
 
 class SuperAdminController extends Controller
 {
-    protected $SuperAdminDashboardService;
-
-    public function __construct()
-    {
-        $this->SuperAdminDashboardService = new SuperAdminDashboardService();
+    public function __construct(
+        private readonly SuperAdminDashboardApplicationService $superAdminDashboardApplicationService,
+        private readonly SuperAdminDashboardService $superAdminDashboardService,
+    ) {
     }
 
     public function superadmindashboard(Request $request)
@@ -27,12 +24,14 @@ class SuperAdminController extends Controller
             return redirect()->route('login')->with('error', 'Please log in to access the dashboard.');
         }
         $user = Auth::user();
-        $counts = $this->SuperAdminDashboardService->getTotalCounts();
-        $examLevelStats = $this->SuperAdminDashboardService->getExamLevelStatistics();
+        $counts = $this->superAdminDashboardApplicationService->getDashboardCounts();
+        $examLevelStats = $this->superAdminDashboardApplicationService->getExamLevelStatistics();
 
-        $level = $request->query('level');
-        $stats = $this->SuperAdminDashboardService->getQualifiedUsersForLevelOne($level);
-       // dd($stats);
+        $level = $request->input('level');
+        // Heavy query: run only when a level is explicitly requested (modal/table fetch).
+        $stats = ($level === null || $level === '')
+            ? []
+            : $this->superAdminDashboardApplicationService->getQualifiedUsersForLevel($level);
         return Inertia::render('SuperAdmin/dashboard', [
             'userName' => $user->name ?? 'SuperAdmin',
             'asheryLeaderCount' => $counts['asheryLeaderCount'],
@@ -49,7 +48,7 @@ class SuperAdminController extends Controller
     }
     public function message(Request $request)
     {
-        $result = $this->SuperAdminDashboardService->showmessage($request);
+        $result = $this->superAdminDashboardService->showmessage($request);
         if ($request->has('query_id')) {
             return Inertia::render('SuperAdmin/messages', [
                 'messages' => $result['messages'],
@@ -62,7 +61,7 @@ class SuperAdminController extends Controller
 
     public function messagestore(Request $request)
     {
-        $chatHistory = $this->SuperAdminDashboardService->storemessage($request);
+        $chatHistory = $this->superAdminDashboardService->storemessage($request);
         return back()->with(['chatHistory' => $chatHistory]);
     }
 

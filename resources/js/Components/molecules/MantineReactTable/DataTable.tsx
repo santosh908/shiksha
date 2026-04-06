@@ -64,11 +64,37 @@ const DataTable = <T extends MRT_RowData>({
   const totalPages = Math.ceil(filteredData.length / pageSize);
 
   // Utility function to format date to dd/MM/yyyy
-  const dateFormate = (dateString: string) => {
-    const dt = dateString;
-    const cDt = new Date(dt);
-    const cDate = cDt.toLocaleDateString('en-GB');
-    return cDate;
+  const dateFormate = (dateString: unknown) => {
+    const raw = String(dateString ?? '').trim();
+    if (!raw || raw === '0000-00-00' || raw === '0000-00-00 00:00:00') return '-';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
+    if (/^\d{10}$/.test(raw)) {
+      const tsDate = new Date(Number(raw) * 1000);
+      return Number.isNaN(tsDate.getTime()) ? '-' : tsDate.toLocaleDateString('en-GB');
+    }
+    if (/^\d{13}$/.test(raw)) {
+      const tsDate = new Date(Number(raw));
+      return Number.isNaN(tsDate.getTime()) ? '-' : tsDate.toLocaleDateString('en-GB');
+    }
+    // Legacy non-ISO date formats (dd-mm-yyyy or dd/mm/yyyy)
+    const dmyMatch = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (dmyMatch) {
+      const day = Number(dmyMatch[1]);
+      const month = Number(dmyMatch[2]);
+      const year = Number(dmyMatch[3]);
+      const parsed = new Date(year, month - 1, day);
+      if (
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.getFullYear() === year &&
+        parsed.getMonth() === month - 1 &&
+        parsed.getDate() === day
+      ) {
+        return parsed.toLocaleDateString('en-GB');
+      }
+    }
+    const cDt = new Date(raw);
+    if (Number.isNaN(cDt.getTime())) return '-';
+    return cDt.toLocaleDateString('en-GB');
   };
 
   const table = useMantineReactTable({

@@ -206,6 +206,14 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ opened, onClose, data }) =>
                 </Table.Td>
                 <Table.Td>{data.ashery_leader_name==null ? '' : data?.ashery_leader_name}</Table.Td>
               </Table.Tr>
+              {pickFirst(data?.bhakti_leader_initiated_name, data?.bhakti_bhikshuk_name) ? (
+                <Table.Tr>
+                  <Table.Td>
+                    <strong>Bhakti Vriksha Leader Name</strong>
+                  </Table.Td>
+                  <Table.Td>{pickFirst(data?.bhakti_leader_initiated_name, data?.bhakti_bhikshuk_name)}</Table.Td>
+                </Table.Tr>
+              ) : null}
               <Table.Tr>
                 <Table.Td>
                   <strong>Since When You Attending Ashray Class</strong>

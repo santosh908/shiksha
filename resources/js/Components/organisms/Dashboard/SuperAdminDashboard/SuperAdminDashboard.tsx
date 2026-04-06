@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import TasksTable from '@/Components/molecules/DashboardComponents/TasksTable/TasksTable';
 import StatsCard from '@/Components/molecules/DashboardComponents/StatsCard/StatsCard';
 import { router, usePage } from '@inertiajs/react';
-import { FaUser, FaUsers, FaUserCheck, FaUserTimes, FaUserClock, FaUserFriends } from 'react-icons/fa';
-import { Modal, Button, Group, Text, Grid, Card, Table } from '@mantine/core';
+import { FaUsers, FaUserCheck, FaUserTimes, FaUserClock, FaUserFriends } from 'react-icons/fa';
+import { Modal, Text, Grid, Card, Table, Title, Stack, Loader, Center } from '@mantine/core';
 import DataTable from '@/Components/molecules/MantineReactTable/DataTable';
 import { useForm } from '@mantine/form';
 import { BarChart } from '@mantine/charts';
@@ -34,8 +33,8 @@ export default function SuperAdminDashboard() {
   const [viewedUser, setViewedUser] = useState<User | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedExamLevel, setSelectedExamLevel] = useState<ExamLevelStat | null>(null);
-  const [openedModal, setOpenedModal] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
 
   const form = useForm({
     initialValues: {
@@ -111,13 +110,63 @@ export default function SuperAdminDashboard() {
     router.reload({
       data: { level: stat.id },
       only: ['stats', 'devoteeusers'],
+      onStart: () => setIsStatsLoading(true),
+      onFinish: () => setIsStatsLoading(false),
+      onError: () => setIsStatsLoading(false),
     });
   };
 
 
   const handleModalClose = () => {
     setModalOpen(false);
-    router.get(`/${roleName[0]}/dashboard`);
+    setSelectedExamLevel(null);
+    setIsStatsLoading(false);
+  };
+
+  const formatExamDate = (value: unknown): string => {
+    const raw = String(value ?? '').trim();
+    if (!raw || raw === '0000-00-00' || raw === '0000-00-00 00:00:00') {
+      return '-';
+    }
+    // Already formatted for UI (dd/MM/yyyy)
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+      return raw;
+    }
+    // Unix timestamp (seconds)
+    if (/^\d{10}$/.test(raw)) {
+      const tsDate = new Date(Number(raw) * 1000);
+      if (!Number.isNaN(tsDate.getTime())) {
+        return tsDate.toLocaleDateString('en-GB');
+      }
+    }
+    // Unix timestamp (milliseconds)
+    if (/^\d{13}$/.test(raw)) {
+      const tsDate = new Date(Number(raw));
+      if (!Number.isNaN(tsDate.getTime())) {
+        return tsDate.toLocaleDateString('en-GB');
+      }
+    }
+    // Legacy non-ISO date formats (dd-mm-yyyy or dd/mm/yyyy)
+    const dmyMatch = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (dmyMatch) {
+      const day = Number(dmyMatch[1]);
+      const month = Number(dmyMatch[2]);
+      const year = Number(dmyMatch[3]);
+      const parsed = new Date(year, month - 1, day);
+      if (
+        !Number.isNaN(parsed.getTime()) &&
+        parsed.getFullYear() === year &&
+        parsed.getMonth() === month - 1 &&
+        parsed.getDate() === day
+      ) {
+        return parsed.toLocaleDateString('en-GB');
+      }
+    }
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      return '-';
+    }
+    return date.toLocaleDateString('en-GB');
   };
 
   //@ts-ignore
@@ -127,7 +176,12 @@ export default function SuperAdminDashboard() {
       { accessorKey: 'email', header: 'Email' },
       { accessorKey: 'name', header: 'Name' },
       { accessorKey: 'initiated_name', header: 'Initiated Name' },
-      { accessorKey: 'exam_date', header: 'Exam Date' },
+      {
+        accessorKey: 'exam_date',
+        header: 'Exam Date',
+        //@ts-ignore
+        Cell: ({ row }) => formatExamDate(row.original.exam_date),
+      },
       { accessorKey: 'total_questions', header: 'Total Questions' },
       {
         accessorKey: 'total_marks',
@@ -230,8 +284,10 @@ export default function SuperAdminDashboard() {
   );
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-8">Welcome back, {String(userName || 'SuperAdmin')}!</h1>
+    <div className="container mx-auto px-4 py-6 md:px-6">
+      <Title order={2} mb="lg">
+        Welcome back, {String(userName || 'SuperAdmin')}!
+      </Title>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-6 gap-4 mb-8">
@@ -245,18 +301,10 @@ export default function SuperAdminDashboard() {
           />
         </div>
 
-        <div className="col-span-1 cursor-pointer" onClick={() => router.get('/Action/partiallydevoteeList')}>
-          <StatsCard
-            title="DEVOTEE"
-            text-align="center"
-            value={`Partially Submitted: ${Devotee || 'N/A'}`}
-            change={18.7}
-            period="month"
-            icon={<FaUserClock size={50} color="#4caf50" />}
-          />
-        </div>
-
-        <div className="col-span-1 cursor-pointer">
+        <div
+          className="col-span-1 cursor-pointer"
+          onClick={() => router.get('/Action/devoteeList', { status: 'S' })}
+        >
           <StatsCard
             title="DEVOTEE"
             value={`Not Approved: ${NotApprovedDevotee || 'N/A'}`}
@@ -297,24 +345,18 @@ export default function SuperAdminDashboard() {
         </div> */}
       </div>
 
-      <Grid>
+      <Grid gutter="lg">
         <Grid.Col span={{ base: 12, md: 12, lg: 6 }}>
-          <h3 className="mb-4 text-medium font-medium">SuperAdmin Overview</h3>
-          {/* <BarChart 
-            h={300}
-            data={data}
-            dataKey="DevoteeType"
-            withTooltip   
-            series={[
-              { name: 'Total', color: 'violet.6' },
-              { name: 'Approved', color: 'blue.6' },
-              { name: 'Pending', color: 'teal.6' },
-            ]}
-            cursorFill="transparent"
-            style={{ backgroundColor: 'white' }}
-          /> */}
-          <BarChart 
-              h={300}
+          <Card withBorder shadow="sm" radius="md" p="lg">
+            <Stack gap="md">
+              <div>
+                <Title order={4}>Registration Overview</Title>
+                <Text size="sm" c="dimmed" mt={4}>
+                  Snapshot of devotee pipeline by role and approval status.
+                </Text>
+              </div>
+              <BarChart
+              h={320}
               data={data}
               dataKey="DevoteeType"
               withTooltip
@@ -325,20 +367,19 @@ export default function SuperAdminDashboard() {
                   return (
                     <div
                       style={{
-                        background: 'white',
+                        background: '#111827',
+                        color: '#F9FAFB',
                         padding: '10px 12px',
-                        border: '1px solid #ddd',
-                        borderRadius: '6px',
-                        minWidth: '140px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        border: '1px solid #1F2937',
+                        borderRadius: '10px',
+                        minWidth: '170px',
+                        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.25)',
                       }}
                     >
-                      {/* Title */}
-                      <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '13px' }}>
                         {label}
                       </div>
 
-                      {/* Rows */}
                       {payload.map((item, index) => (
                         <div
                           key={index}
@@ -347,13 +388,23 @@ export default function SuperAdminDashboard() {
                             justifyContent: 'space-between',
                             gap: '12px',
                             fontSize: '13px',
-                            marginBottom: '2px',
+                            marginBottom: '4px',
+                            alignItems: 'center',
                           }}
                         >
-                          <span style={{ color: item.color }}>
-                            {item.name}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '999px',
+                                background: item.color,
+                                display: 'inline-block',
+                              }}
+                            />
+                            <span style={{ color: '#E5E7EB' }}>{item.name}</span>
                           </span>
-                          <span style={{ fontWeight: 500 }}>
+                          <span style={{ fontWeight: 700 }}>
                             {item.value}
                           </span>
                         </div>
@@ -363,37 +414,38 @@ export default function SuperAdminDashboard() {
                 },
               }}
               series={[
-                { name: 'Total', color: 'violet.6' },
-                { name: 'Approved', color: 'blue.6' },
-                { name: 'Pending', color: 'teal.6' },
+                { name: 'Total', color: 'indigo.6' },
+                { name: 'Approved', color: 'teal.6' },
+                { name: 'Pending', color: 'orange.6' },
               ]}
               cursorFill="transparent"
-              style={{ backgroundColor: 'white' }}
+              strokeDasharray="3 3"
             />
-
+            </Stack>
+          </Card>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 12, lg: 6}}>
-          <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-medium"> Shiksha Level Exams Qualified Devotees</h3>
+        <Grid.Col span={{ base: 12, md: 12, lg: 6 }}>
+          <Card withBorder shadow="sm" radius="md" p="lg">
+            <Title order={4} mb="md">Shiksha Level Qualified Devotees</Title>
             <table className="min-w-full table-auto">
               <thead>
-                <tr className="bg-gray-200">
-                  <th className="py-2 px-4 text-left">#</th>
-                  <th className="py-2 px-4 text-left">Exam Level</th>
-                  <th className="py-2 px-4 text-left">No. of Devotees</th>
+                <tr className="bg-gray-50">
+                  <th className="py-2 px-4 text-left text-sm font-semibold text-gray-700">#</th>
+                  <th className="py-2 px-4 text-left text-sm font-semibold text-gray-700">Exam Level</th>
+                  <th className="py-2 px-4 text-left text-sm font-semibold text-gray-700">No. of Devotees</th>
                 </tr>
               </thead>
               <tbody>
-                {examLevelData.map((stat: ExamLevelStat) => (
-                  <tr key={stat.name} className="border-t cursor-pointer" onClick={() => handleRowClick(stat)}>
-                    <td className="py-2 px-4">{stat.id}</td>
-                    <td className="py-2 px-4">{stat.name}</td>
-                    <td className="py-2 px-4">{stat.count}</td>
+                {examLevelData.map((stat: ExamLevelStat, index: number) => (
+                  <tr key={stat.name} className="border-t cursor-pointer hover:bg-gray-50" onClick={() => handleRowClick(stat)}>
+                    <td className="py-2 px-4 text-sm">{index + 1}</td>
+                    <td className="py-2 px-4 text-sm font-medium">{stat.name}</td>
+                    <td className="py-2 px-4 text-sm">{stat.count}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         </Grid.Col>
       </Grid>
 
@@ -402,8 +454,17 @@ export default function SuperAdminDashboard() {
           <Grid>
             <Grid.Col span={12}>
               <Card shadow="sm" padding="lg" radius="md" withBorder>
-                <Text size="lg">Details for {selectedExamLevel.name}</Text>
-                <DataTable data={validstats} columnsFields={columns} PageSize={PAGE_SIZE} />
+                <Text size="lg" fw={600} mb="sm">Details for {selectedExamLevel.name}</Text>
+                {isStatsLoading ? (
+                  <Center py="xl">
+                    <Stack align="center" gap="xs">
+                      <Loader size="sm" />
+                      <Text size="sm" c="dimmed">Loading data...</Text>
+                    </Stack>
+                  </Center>
+                ) : (
+                  <DataTable data={validstats} columnsFields={columns} PageSize={PAGE_SIZE} />
+                )}
               </Card>
             </Grid.Col>
           </Grid>

@@ -202,9 +202,9 @@ export default function Spritual_1({ masterData, handleBack, handleNext, contain
             label="Time Spent Hearing Lectures"
             {...form.getInputProps('SpendTimeHearingLecture')}
             data={[
-              { value: 'less_than_half_hour', label: 'Less than half an hour' },
-              { value: 'between_30_minutes_and_60_minutes', label: 'Between 30 minutes and 60 minutes' },
-              { value: 'more_than_60_minutes', label: 'More than 60 minutes' },
+              { value: 'Less than half an hour', label: 'Less than half an hour' },
+              { value: 'Between 30 minutes and 60 minutes', label: 'Between 30 minutes and 60 minutes' },
+              { value: 'More than 60 minutes', label: 'More than 60 minutes' },
             ]}
             clearable
             searchable

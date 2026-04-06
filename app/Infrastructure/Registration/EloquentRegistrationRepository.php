@@ -100,6 +100,16 @@ class EloquentRegistrationRepository implements RegistrationRepositoryInterface
                 ]);
             }
 
+            $ashrayLeaderId = null;
+            if (!empty($data['ashray_leader_code'])) {
+                $ashrayLeaderId = AsheryLeader::query()
+                    ->where('code', $data['ashray_leader_code'])
+                    ->value('id');
+            }
+
+            $noOfChant = $data['NoOfChant'] ?? null;
+            $howManyRounds = $noOfChant === null || $noOfChant === '' ? null : (string) $noOfChant;
+
             $professional = ProfessionalInformation::updateOrCreate(
                 ['user_id' => $user->id],
                 [
@@ -114,12 +124,14 @@ class EloquentRegistrationRepository implements RegistrationRepositoryInterface
                     'pincode' => $data['Pincode'],
                     'state_code' => $data['State'],
                     'district_code' => $data['District'],
-                    'how_many_rounds_you_chant' => $data['NoOfChant'] ?? null,
+                    'how_many_rounds_you_chant' => $howManyRounds,
                     'when_are_you_chantin' => $data['ChantingStartDate'] ?? null,
                     'spend_everyday_hearing_lectures' => $data['SpendTimeHearingLecture'] ?? null,
                     'bakti_shastri_degree' => $data['ShastriDegree'] ?? null,
+                    'ashray_leader' => $ashrayLeaderId,
                     'since_when_you_attending_ashray_classes' => $data['since_when_you_attending_ashray_classes'] ?? null,
                     'spiritual_master_you_aspiring' => $data['spiritual_master_you_aspiring'] ?? null,
+                    'attend_shray_classes_in_temple' => $data['attend_shray_classes_in_temple'] ?? '0',
                     'personal_info' => 'Y',
                     'professional_info' => 'Y',
                     'hearing_reading' => 'Y',

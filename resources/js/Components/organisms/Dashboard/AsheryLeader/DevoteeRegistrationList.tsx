@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import { Anchor, Breadcrumbs, Button, Flex, Text } from '@mantine/core';
 import { RegistrationRequest } from './DevoteeRegistrationList.type';
@@ -31,10 +31,17 @@ export default function DevoteeRegistrationList() {
   const raw = props.devotees;
   const allDevotees = isPaginated(raw) ? raw.data : raw || [];
   const pagination = isPaginated(raw) ? raw : null;
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('search') ?? '';
+  });
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return new URLSearchParams(window.location.search).get('status') ?? 'all';
+  });
   const [perPage, setPerPage] = useState<number>(pagination?.per_page ?? 50);
   const { roles: RoleName } = useUserStore();
+  const didHydrateFiltersRef = useRef(false);
 
   useEffect(() => {
     if (pagination?.per_page && pagination.per_page !== perPage) {
@@ -55,6 +62,12 @@ export default function DevoteeRegistrationList() {
     );
 
   useEffect(() => {
+    // Avoid duplicate request: initial page already comes from server-side render.
+    if (!didHydrateFiltersRef.current) {
+      didHydrateFiltersRef.current = true;
+      return;
+    }
+
     const timeoutId = window.setTimeout(() => {
       fetchList({ page: 1, search: searchQuery, status: statusFilter });
     }, 350);

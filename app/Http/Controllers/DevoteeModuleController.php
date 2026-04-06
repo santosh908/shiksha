@@ -3,18 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Services\Report\ReportServices; // Assuming we reuse this valid logic
+use App\Services\DevoteeModuleApplicationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\DB; // For raw queries/view access if needed directly
 
 class DevoteeModuleController extends Controller
 {
-    protected $reportServices;
-
-    public function __construct(ReportServices $reportServices)
+    public function __construct(
+        private readonly DevoteeModuleApplicationService $devoteeModuleApplicationService
+    )
     {
-        $this->reportServices = $reportServices;
     }
 
     /**
@@ -31,8 +29,7 @@ class DevoteeModuleController extends Controller
      */
     public function list()
     {
-        // Leverage existing service logic which already fetches from the view and calculates next level
-        $data = $this->reportServices->DevoteeVewProfile();
+        $data = $this->devoteeModuleApplicationService->list();
         return response()->json($data);
     }
 
@@ -41,19 +38,10 @@ class DevoteeModuleController extends Controller
      */
     public function details($id)
     {
-        $devotee = DB::table('devotee_with_all_details_view')
-            ->where('prid', $id)
-            ->first();
-
-        if (!$devotee) {
+        $details = $this->devoteeModuleApplicationService->details($id);
+        if (! $details) {
             return response()->json(['error' => 'Devotee not found'], 404);
         }
-
-        $examLevels = $this->reportServices->getDevoteeExamLevels($devotee->login_id);
-
-        return response()->json([
-            'personal_details' => $devotee,
-            'exam_details' => $examLevels
-        ]);
+        return response()->json($details);
     }
 }

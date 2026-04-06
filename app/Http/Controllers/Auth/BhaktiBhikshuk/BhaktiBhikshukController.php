@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth\BhaktiBhikshuk;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use App\Models\AsheryLeader;
-use App\Services\BhaktiBhikshuk\BhaktiBhikshukService;
+use App\Services\AdminCatalogApplicationService;
 use App\Http\Requests\BhaktiVrikshukRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -14,11 +14,9 @@ use Illuminate\Support\Facades\Auth;
 
 class BhaktiBhikshukController extends Controller
 {
-    protected $BhaktiBhikshukService;
-
-    public function __construct()
-    {
-        $this->BhaktiBhikshukService = new BhaktiBhikshukService();
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function bhaktibhikshukdashboard()
@@ -28,7 +26,7 @@ class BhaktiBhikshukController extends Controller
 
     public function bhaktibhikshuk()
     {
-        $list = $this->BhaktiBhikshukService->BhaktiBhikshukList();
+        $list = $this->adminCatalogApplicationService->listBhaktiBhikshuks();
         $user = Auth::user();
         if($user->devotee_type=="AL")
         {
@@ -46,7 +44,7 @@ class BhaktiBhikshukController extends Controller
     public function bhaktibhikshukStore(BhaktiVrikshukRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $bhaktibhikshukinfo = $this->BhaktiBhikshukService->createBhaktiBhikshuk($request);
+        $bhaktibhikshukinfo = $this->adminCatalogApplicationService->createBhaktiBhikshuk($request);
         return redirect()->route('Action.BhaktiBhikshukStore')
             ->with('success', 'Bhakti Bhikshuk Details Saved Successfully!')
             ->with('savedData', $bhaktibhikshukinfo);
@@ -94,7 +92,7 @@ class BhaktiBhikshukController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $bhaktibhikshukinfo = $this->BhaktiBhikshukService->updateBhaktiVrikshuk($request);
+        $bhaktibhikshukinfo = $this->adminCatalogApplicationService->updateBhaktiBhikshuk($request);
         return redirect()->route('Action.BhaktiBhikshukStore')
             ->with('success', 'Bhakti Bhikshuk Details Updated Successfully!')
             ->with('savedData', $bhaktibhikshukinfo);
@@ -102,7 +100,7 @@ class BhaktiBhikshukController extends Controller
 
     public function destroy($id)
     {
-        $bhaktiVrikshuk = $this->BhaktiBhikshukService->delete($id);
+        $bhaktiVrikshuk = $this->adminCatalogApplicationService->deleteBhaktiBhikshuk($id);
         if ($bhaktiVrikshuk) {
             return redirect()->back()->with('success', 'Bhakti Vrikshuk deleted successfully');
         } else {

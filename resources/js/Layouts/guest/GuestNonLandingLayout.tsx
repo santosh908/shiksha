@@ -17,10 +17,10 @@ function GuestNonLandingLayout({ children, pageTitle }: GuestNonLandingLayoutPro
       <TopHeaderNav />
       <TopBanner />
       <Breadcrumb titile={pageTitle} />
-      <Container size="xl" p="md">
-        <Flex mih={400} className="w-full "  justify="center">
+      <Container size="xl" p={{ base: 'xs', sm: 'md' }}>
+        <Flex mih={{ base: 200, sm: 320 }} className="w-full" justify="flex-start" align="stretch" direction="column">
           {children}
-        </Flex> 
+        </Flex>
       </Container>
       <FotterComman />
     </GuestLayout>

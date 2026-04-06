@@ -7,21 +7,19 @@ use Illuminate\Http\Request;
 use App\Models\MemorisedPrayers;
 use App\Http\Requests\MemorisedprayersStore\MemorisedprayersStoreRequest;
 use Illuminate\Http\RedirectResponse;
-use App\Services\Memorisedprayers\Memorisedprayerservice;
+use App\Services\AdminCatalogApplicationService;
 
 
 class MemorisedprayersController extends Controller
 {
-    protected $Memorisedprayerservice;
-
-    public function __construct()
-    {
-        $this->Memorisedprayerservice = new Memorisedprayerservice();
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function prayers()
     {
-        $list = $this->Memorisedprayerservice->PrayerList();
+        $list = $this->adminCatalogApplicationService->listPrayers();
         //dd($list);
         return Inertia::render('SuperAdmin/memorisedprayers', $list);
     }
@@ -30,7 +28,7 @@ class MemorisedprayersController extends Controller
     {
         $data = $request->validated();
 
-        $prayerinfo = $this->Memorisedprayerservice->createprayers($request);
+        $prayerinfo = $this->adminCatalogApplicationService->createPrayer($request);
         return redirect()->route('Action.PrayersStore')
             ->with('success', 'Prayers Details Saved Successfully!')
             ->with('savedData', $prayerinfo);
@@ -38,7 +36,7 @@ class MemorisedprayersController extends Controller
 
     public function destroy($id): RedirectResponse
     {
-        $prayersinfo = $this->Memorisedprayerservice->deleteMeritalStatus($id);
+        $prayersinfo = $this->adminCatalogApplicationService->deletePrayer($id);
         if ($prayersinfo) {
             return redirect()->back()->with('success', 'Prayers deleted successfully');
         } else {
@@ -49,7 +47,7 @@ class MemorisedprayersController extends Controller
     public function update(MemorisedprayersStoreRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $prayersinfo = $this->Memorisedprayerservice->updatePrayers($request);
+        $prayersinfo = $this->adminCatalogApplicationService->updatePrayer($request);
         return redirect()->route('Action.prayers')->with('success', 'Prayers updated successfully!');
     }
 }

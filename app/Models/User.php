@@ -31,13 +31,15 @@ class User extends Authenticatable
         'name',
         'Initiated_name',
         'dob',
-        "contact_number",
-        "devotee_type",
-        "have_you_applied_before",
+        'contact_number',
+        'devotee_type',
+        'have_you_applied_before',
         'login_id',
         'password',
         'm_relation_type',
-        'relative_login_id'
+        'relative_login_id',
+        'account_approved',
+        'profile_submitted',
     ];
 
     /**

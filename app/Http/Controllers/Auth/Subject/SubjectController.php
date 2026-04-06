@@ -6,25 +6,20 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Subject\Subject;
 use App\Http\Requests\Subject\SubjectRequest;
-use App\Services\Subject\SubjectServices;
+use App\Services\AdminCatalogApplicationService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 class SubjectController extends Controller
 {
-    protected $SubjectServices;
-
-    public function __construct()
-    {
-        $this->SubjectServices = new SubjectServices();
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function subject()
     {
-        $list = [
-            'SubjectList' => $this->SubjectServices->SubjectList(),
-            'shikshalevel' => $this->SubjectServices->shikshalevel(),
-        ];
+        $list = $this->adminCatalogApplicationService->listSubjectsWithMasterData();
         //dd($list);
         return Inertia::render('SuperAdmin/subject', $list);
     }
@@ -34,7 +29,7 @@ class SubjectController extends Controller
     {
         $data = $request->validated();
 
-        $subjectinfo = $this->SubjectServices->createSubject($request);
+        $subjectinfo = $this->adminCatalogApplicationService->createSubject($request);
         ///dd($subjectinfo);
         return redirect()->route('Action.SubjectStore')
             ->with('success', 'Subject Details Saved Successfully!')
@@ -44,7 +39,7 @@ class SubjectController extends Controller
     public function destroy($id)
     {
         //$education->delete();
-        $subjectinfo = $this->SubjectServices->deleteSubject($id);
+        $subjectinfo = $this->adminCatalogApplicationService->deleteSubject($id);
         //return redirect()->back()->with('success', 'Education deleted successfully');
         if ($subjectinfo) {
             return redirect()->back()->with('success', 'Subject deleted successfully');
@@ -56,7 +51,7 @@ class SubjectController extends Controller
     public function update(SubjectRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $subjectinfo = $this->SubjectServices->updateSubject($request);
+        $subjectinfo = $this->adminCatalogApplicationService->updateSubject($request);
 
         return redirect()->route('Action.subject')->with('success', 'Subject updated successfully!');
     }

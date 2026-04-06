@@ -48,9 +48,15 @@ class RegisteredUserController extends Controller
         $registrationData = $this->registrationService->mapRequestToRegistrationData($data);
         $user = $this->registrationService->createUser($registrationData);
         $user->assignRole('Devotee');
-        return redirect()->route('register')->with(
+
+        return redirect()->route('registration.submitted')->with(
             'success',
-            'Your registration has been submitted.'
+            'Your registration request has been submitted successfully. Once your profile is approved, you will be notified by email.'
         );
+    }
+
+    public function submitted(): Response
+    {
+        return Inertia::render('Auth/RegistrationSubmitted');
     }
 }

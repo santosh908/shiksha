@@ -4,26 +4,21 @@ namespace App\Http\Controllers\Auth\Chapter;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Services\Chapter\ChapterServices;
+use App\Services\AdminCatalogApplicationService;
 use App\Http\Requests\Chapter\ChapterRequest;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 
 class ChapterController extends Controller
 {
-    protected $ChapterServices;
-
-    public function __construct()
-    {
-        $this->ChapterServices = new ChapterServices();
+    public function __construct(
+        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+    ) {
     }
 
     public function chapter()
     {
-        $list = [
-            'ChapterList' => $this->ChapterServices->ChapterList(),
-            'Subject' => $this->ChapterServices->Subject(),
-        ];
+        $list = $this->adminCatalogApplicationService->listChaptersWithMasterData();
         //dd($list);
         return Inertia::render('SuperAdmin/chapter', $list);
     }
@@ -33,7 +28,7 @@ class ChapterController extends Controller
     {
         $data = $request->validated();
 
-        $chapterinfo = $this->ChapterServices->createSubject($request);
+        $chapterinfo = $this->adminCatalogApplicationService->createChapter($request);
         //dd($chapterinfo);
         return redirect()->route('Action.ChapterStore')
             ->with('success', 'Chapter Details Saved Successfully!')
@@ -43,7 +38,7 @@ class ChapterController extends Controller
     public function destroy($id)
     {
         //$education->delete();
-        $subjectinfo = $this->ChapterServices->deleteChapter($id);
+        $subjectinfo = $this->adminCatalogApplicationService->deleteChapter($id);
         //return redirect()->back()->with('success', 'Education deleted successfully');
         if ($subjectinfo) {
             return redirect()->back()->with('success', 'Chapter deleted successfully');
@@ -55,7 +50,7 @@ class ChapterController extends Controller
     public function update(ChapterRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $subjectinfo = $this->ChapterServices->updateChapter($request);
+        $subjectinfo = $this->adminCatalogApplicationService->updateChapter($request);
 
         return redirect()->route('Action.chapter')->with('success', 'Chapter updated successfully!');
     }
