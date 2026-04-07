@@ -2,12 +2,15 @@
 
 namespace App\Services;
 
+use App\Application\DevoteeModule\DTOs\GetDevoteeModuleDetailsData;
+use App\Application\DevoteeModule\UseCases\GetDevoteeModuleDetailsUseCase;
 use App\Domain\DevoteeModule\Contracts\DevoteeModuleRepositoryInterface;
 
 class DevoteeModuleApplicationService
 {
     public function __construct(
-        private readonly DevoteeModuleRepositoryInterface $repository
+        private readonly DevoteeModuleRepositoryInterface $repository,
+        private readonly GetDevoteeModuleDetailsUseCase $getDevoteeModuleDetailsUseCase
     ) {
     }
 
@@ -22,8 +25,8 @@ class DevoteeModuleApplicationService
     /**
      * @return array<string, mixed>|null
      */
-    public function details(int|string $id): ?array
+    public function details(GetDevoteeModuleDetailsData $data): ?array
     {
-        return $this->repository->details($id);
+        return $this->getDevoteeModuleDetailsUseCase->execute($data);
     }
 }

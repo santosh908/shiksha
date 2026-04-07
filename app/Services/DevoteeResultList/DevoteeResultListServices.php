@@ -356,6 +356,28 @@ class DevoteeResultListServices
                 $isPromotedInput = strtoupper(trim($row['I'] ?? 'FALSE'));
                 $isPromoted = ($isPromotedInput === 'TRUE') ? '1' : '0';
 
+                $rowTotalMarks = (float) ($row['F'] ?? 0);
+                $rowObtainedMarks = (float) ($row['G'] ?? 0);
+                $qualifyingMarks = (float) ($exam->qualifying_marks ?? 0);
+                $examTotalMarks = (float) ($exam->total_marks ?? 0);
+
+                if ($rowTotalMarks !== $examTotalMarks) {
+                    $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}'): Column F total marks '{$row['F']}' does not match exam total marks '{$exam->total_marks}'.";
+                }
+
+                if ($isQualified === '1' && $rowObtainedMarks < $qualifyingMarks) {
+                    $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}') record is not valid: Column H is TRUE but obtained marks '{$row['G']}' are below qualifying marks '{$exam->qualifying_marks}'. Please check qualified marks.";
+                }
+
+                if ($isQualified === '0' && $rowObtainedMarks >= $qualifyingMarks) {
+                    $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}') record is not valid: Column H is FALSE but obtained marks '{$row['G']}' meet/exceed qualifying marks '{$exam->qualifying_marks}'. Please check qualified marks.";
+                }
+
+                if (!empty($rowErrors)) {
+                    $errors = array_merge($errors, $rowErrors);
+                    continue;
+                }
+
                 $existingRecord = DB::table('shiksah_lavel_completed')
                     ->where('login_id', $loginId)
                     ->where('exam_id', $examId)

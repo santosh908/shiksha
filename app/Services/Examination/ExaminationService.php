@@ -29,7 +29,7 @@ class ExaminationService
 
   public function getExamSessionList()
   {
-    return ExamSessionModel::All()->toArray();
+    return ExamSessionModel::orderBy('id', 'desc')->get()->toArray();
   }
 
   public function getExamSessionWithExamName()
@@ -59,6 +59,7 @@ class ExaminationService
         }
       ])
       ->groupBy('examinations.id', 'exam_session.session_name', 'shiksha_levels.exam_level', 'examinations.no_of_question')
+      ->orderBy('examinations.id', 'desc')
       ->get()
       ->map(function ($item) {
         $item->questions = $item->examQuestions->map(function ($question) {
@@ -109,6 +110,7 @@ class ExaminationService
       ->when($request->input('exam_id'), function ($query) use ($request) {
         return $query->where('examinations.id', $request->input('exam_id'));
       })
+      ->orderBy('examinations.id', 'desc')
       ->get()
       ->map(function ($item) {
         $item->questions = $item->examQuestions->map(function ($question) {
@@ -384,7 +386,7 @@ class ExaminationService
 
   public function getShikshaLevelList()
   {
-    $shikshalevel = ShikshaLevel::where('is_active', 'Y')->get()->toArray();
+    $shikshalevel = ShikshaLevel::where('is_active', 'Y')->orderBy('id', 'desc')->get()->toArray();
     return $shikshalevel;
   }
 
@@ -404,7 +406,7 @@ class ExaminationService
 
   public function getExaminationSessionList()
   {
-    $examinationsession = ExamSessionModel::all()->toArray();
+    $examinationsession = ExamSessionModel::orderBy('id', 'desc')->get()->toArray();
     return $examinationsession;
   }
 

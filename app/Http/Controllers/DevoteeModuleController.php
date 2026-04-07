@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Application\DevoteeModule\DTOs\GetDevoteeModuleDetailsData;
 use App\Http\Controllers\Controller;
 use App\Services\DevoteeModuleApplicationService;
 use Illuminate\Http\Request;
@@ -38,7 +39,8 @@ class DevoteeModuleController extends Controller
      */
     public function details($id)
     {
-        $details = $this->devoteeModuleApplicationService->details($id);
+        $data = new GetDevoteeModuleDetailsData((int) $id);
+        $details = $this->devoteeModuleApplicationService->details($data);
         if (! $details) {
             return response()->json(['error' => 'Devotee not found'], 404);
         }

@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Application\DevoteePostRegistration\DTOs\SaveDevoteeSeminarData;
+use App\Application\DevoteePostRegistration\DTOs\SaveHearingReadingData;
+use App\Application\DevoteePostRegistration\DTOs\SavePersonalInfoData;
+use App\Application\DevoteePostRegistration\DTOs\SaveProfessionalInfoData;
 use App\Application\DevoteeProfileAdmin\DTOs\UpdatePersonalInfoData;
 use App\Application\DevoteeProfileAdmin\DTOs\UpdateSpiritualInfoOneData;
 use App\Application\DevoteeProfileAdmin\DTOs\UpdateSpiritualInfoThreeData;
@@ -12,6 +16,7 @@ use App\Http\Requests\Devotee\StoreProfessionalInfo;
 use App\Http\Requests\Devotee\StoreHearingReading;
 use App\Http\Requests\Devotee\StoreDevoteeSeminar;
 use App\Services\DevoteeApprovalService;
+use App\Services\DevoteePostRegistrationApplicationService;
 use App\Services\DevoteeProfileAdminApplicationService;
 use App\Services\PostRegistraion\PostRegistraionService;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +40,7 @@ class PostRegistrationUserController extends Controller
     public function __construct(
         PostRegistraionService $postRegistrationService,
         DevoteeApprovalService $devoteeApprovalService,
+        private readonly DevoteePostRegistrationApplicationService $devoteePostRegistrationApplicationService,
         private readonly DevoteeProfileAdminApplicationService $devoteeProfileAdminApplicationService
     )
     {
@@ -46,8 +52,8 @@ class PostRegistrationUserController extends Controller
      */
     public function storePersonalInfo(StoreCompleteRegistraionRequest $request): RedirectResponse
     {
-        $data = $request->validated();
-        $personalinfo = $this->postRegistrationService->SavePersonalInfo($request);
+        $dto = SavePersonalInfoData::fromArray($request->validated());
+        $this->devoteePostRegistrationApplicationService->savePersonalInfo($dto);
 
         session()->put('notification', "Personal Information has been saved successfully!");
         return redirect()->back()->with('success', 'Personal Information has been saved successfully!');
@@ -55,34 +61,36 @@ class PostRegistrationUserController extends Controller
 
     public function StoreProfessionalInfo(StoreProfessionalInfo $request): RedirectResponse
     {
-        $perInfo = $request->validated();
-        $Professional = $this->postRegistrationService->SaveProfessionalInfo($request);
+        $dto = SaveProfessionalInfoData::fromArray($request->validated());
+        $this->devoteePostRegistrationApplicationService->saveProfessionalInfo($dto);
         session()->put('notification', "Spritual Information 1 has been saved successfully!");
         return redirect()->back()->with('success', 'Spritual Information 1 has been saved successfully!');
     }
 
     public function StoreHearingReading(StoreHearingReading $request)
     {
-        $hr = $request->validated();
-        $hearingReading = $this->postRegistrationService->SaveHearingReading($request);
+        $dto = SaveHearingReadingData::fromArray($request->validated());
+        $this->devoteePostRegistrationApplicationService->saveHearingReading($dto);
         session()->put('notification', "Spritual Information 2 has been saved successfully!");
         return redirect()->back()->with('success', 'Spritual Information 2 has been saved successfully!');
     }
 
     public function StoreDevoteeSeminar(StoreDevoteeSeminar $request): RedirectResponse
     {
-        //dd($request );
-        $hr = $request->validated();
+        $payload = array_merge($request->validated(), [
+            'Bhakti_BhikshukId' => $request->input('Bhakti_BhikshukId'),
+        ]);
+        $dto = SaveDevoteeSeminarData::fromArray($payload);
         $user = Auth::user();
         $professionalInfo = ProfessionalInformation::where('user_id', $user->id)->first();
         if ($professionalInfo->status_code == 'N') {
-            $hearingReading = $this->postRegistrationService->SaveDevoteeSeminar($request);
+            $this->devoteePostRegistrationApplicationService->saveDevoteeSeminar($dto);
             $EmailID = Auth::user()->email;
             $sendEmail = dispatch(new DevoteeRegistrationCompletedJob(["email" => $EmailID]));
             session()->put('notification', "Your registration request has been successfully submitted to your Ashray Leader!");
             return redirect()->back()->with('success', 'Your registration request has been successfully submitted to your Ashray Leader!');
         } else {
-            $hearingReading = $this->postRegistrationService->SaveDevoteeSeminar($request);
+            $this->devoteePostRegistrationApplicationService->saveDevoteeSeminar($dto);
             session()->put('notification', "Except Ashray Leader details has been successfully updated!");
             return redirect()->back()->with('success', 'Except Ashray Leader details has been successfully updated!');
         }

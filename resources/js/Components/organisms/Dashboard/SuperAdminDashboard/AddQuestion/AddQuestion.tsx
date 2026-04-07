@@ -126,21 +126,25 @@ export default function AddQuestionComponent() {
 
   useEffect(() => {
     if (selectedExamLevel) {
-      // Filter subjects based on shiksha_level_id matching the selected exam level
-      const filtered = subjectList.filter((subject) => subject.shiksha_level_id === selectedExamLevel);
+      // Support legacy payload keys (shiksha_level_id/level_id) and string/number mismatches.
+      const filtered = subjectList.filter((subject) => {
+        const levelId = String((subject as any).shiksha_level_id ?? (subject as any).level_id ?? '');
+        return levelId === String(selectedExamLevel);
+      });
       setFilteredSubjects(filtered);
     } else {
-      setFilteredSubjects([]);
+      // Keep options visible after page refresh/filter actions.
+      setFilteredSubjects(subjectList || []);
     }
     setSelectedSubject(null);
   }, [selectedExamLevel, subjectList]);
 
   useEffect(() => {
     if (selectedSubject) {
-      const filtered = chapterList.filter((chapter) => chapter.subject_id.toString() === selectedSubject);
+      const filtered = chapterList.filter((chapter) => String(chapter.subject_id) === String(selectedSubject));
       setFilteredChapters(filtered);
     } else {
-      setFilteredChapters([]);
+      setFilteredChapters(chapterList || []);
     }
     setSelectedChapter(null);
   }, [selectedSubject, chapterList]);

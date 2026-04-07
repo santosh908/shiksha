@@ -4,8 +4,7 @@ namespace App\Http\Controllers\Auth\QuestionBank;
 use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\QuestionBankStore\QuestionBankRequest;
-use App\Services\Question\QuestionBankService;
-use App\Services\Examination\ExaminationService;
+use App\Services\QuestionBankApplicationService;
 use Illuminate\Http\Request;
 use App\Models\QuestionBank\QuestionBank;
 use App\Models\Subject\Subject;
@@ -16,21 +15,17 @@ use Illuminate\Http\RedirectResponse;
 
 class QuestionBankController extends Controller
 {
-    protected $QuestionBankService;
-    protected $examServices;
-
-    public function __construct()
-    {
-        $this->QuestionBankService = new QuestionBankService();
-        $this->examServices = new ExaminationService();
+    public function __construct(
+        private readonly QuestionBankApplicationService $questionBankApplicationService
+    ) {
     }
 
     public function questionbank()
     {
-        $list = $this->QuestionBankService->QuestionBankList();
+        $list = $this->questionBankApplicationService->list();
         $shikshalevel = ShikshaLevel::where('is_active', 'Y')->get()->toArray();
-        $subjectList = $this->QuestionBankService->SubjectList();
-        $chapterList = $this->QuestionBankService->ChapterList();
+        $subjectList = $this->questionBankApplicationService->subjects();
+        $chapterList = $this->questionBankApplicationService->chapters();
         //dd($shikshalevel, $subjectList, $list);
         return Inertia::render('SuperAdmin/questionbank', [
             'QuestionBank' => ['QuestionBankList' => $list],
@@ -50,16 +45,16 @@ class QuestionBankController extends Controller
                 'QuestionBankList' => [],
                 'subjectList' => $subjectList,
                 'shikshalevel' => $shikshalevel,
-                'examList' => $this->examServices->getExamSessionWithExamName(),
+                'examList' => $this->questionBankApplicationService->examSessionsWithNames(),
             ]
         );
     }
 
     public function filterQuestions(Request $request)
     {
-        $filteredQuestions = $this->QuestionBankService->filterQuestions($request);
-        $subjectList = $this->QuestionBankService->SubjectList();
-        $chapterList = $this->QuestionBankService->ChapterList();
+        $filteredQuestions = $this->questionBankApplicationService->filterQuestions($request);
+        $subjectList = $this->questionBankApplicationService->subjects();
+        $chapterList = $this->questionBankApplicationService->chapters();
         $shikshalevel = ShikshaLevel::where('is_active', 'Y')->get()->toArray();
         return Inertia::render(
             'SuperAdmin/addquestion',
@@ -68,7 +63,7 @@ class QuestionBankController extends Controller
                 'subjectList' => $subjectList,
                 'shikshalevel' => $shikshalevel,
                 'chapterList' => $chapterList,
-                'examList' => $this->examServices->getExamSessionWithExamNameByFilter($request),
+                'examList' => $this->questionBankApplicationService->examSessionsWithNamesByFilter($request),
             ]
         );
     }
@@ -86,7 +81,7 @@ class QuestionBankController extends Controller
             'examId.required' => 'The exam ID is required.',
         ]);
 
-        $questionbankinfo = $this->QuestionBankService->addQuestionsToExams($request);
+        $questionbankinfo = $this->questionBankApplicationService->addQuestionsToExams($request);
         return redirect()->route('Action.addquestion')->with('success', 'Question added to exam successfully!');
     }
 
@@ -94,7 +89,7 @@ class QuestionBankController extends Controller
     {
         $questionId = $request->query('question_id');
         $examId = $request->query('exam_id');
-        $question = $this->QuestionBankService->removeQuestion($request);
+        $question = $this->questionBankApplicationService->removeQuestion($request);
         if ($question) {
             return redirect()->back()->with('success', 'Question removed successfully');
         } else {
@@ -105,7 +100,7 @@ class QuestionBankController extends Controller
     public function questionbankStore(QuestionBankRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $questionbankinfo = $this->QuestionBankService->createQuestionBank($request);
+        $questionbankinfo = $this->questionBankApplicationService->create($request);
         return redirect()->route('Action.QuestionStore')
             ->with('success', 'Question Details Saved Successfully!')
             ->with('savedData', $questionbankinfo);
@@ -114,13 +109,42 @@ class QuestionBankController extends Controller
     public function update(QuestionBankRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $questionbankinfo = $this->QuestionBankService->updateQuestionBank($request);
+        $questionbankinfo = $this->questionBankApplicationService->update($request);
         return redirect()->route('Action.questionbank')->with('success', 'Question updated successfully!');
+    }
+
+    public function edit(QuestionBank $questionbank)
+    {
+        return response()->json($questionbank);
+    }
+
+    public function view(QuestionBank $questionbank)
+    {
+        return response()->json($questionbank);
+    }
+
+    public function destroy(QuestionBank $questionbank): RedirectResponse
+    {
+        $deleted = $questionbank->delete();
+        if ($deleted) {
+            return redirect()->back()->with('success', 'Question deleted successfully');
+        }
+
+        return redirect()->back()->with('error', 'Question not found or could not be deleted');
+    }
+
+    public function getSubjects($levelId)
+    {
+        $subjects = Subject::where('is_active', 'Y')
+            ->orderBy('subject_name', 'asc')
+            ->get();
+
+        return response()->json($subjects);
     }
 
     public function bulkquestionupload()
     {
-        $list = $this->QuestionBankService->QuestionBankList();
+        $list = $this->questionBankApplicationService->list();
         return Inertia::render('SuperAdmin/uploadbulkquestion', [
             'QuestionBank' => ['QuestionBankList' => $list],
         ]);
@@ -135,7 +159,7 @@ class QuestionBankController extends Controller
             ]);
 
             $file = $request->file('file');
-            $result = $this->QuestionBankService->createBulkQuestionBank($file);
+            $result = $this->questionBankApplicationService->bulkUpload($file);
 
             return redirect()->route('Action.questionbank')
                 ->with('success', 'Questions uploaded successfully!');

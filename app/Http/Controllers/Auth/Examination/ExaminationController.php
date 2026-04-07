@@ -10,10 +10,13 @@ use App\Models\QuestionBank\QuestionBank;
 use App\Http\Requests\ExaminationStore\ExaminationRequest;
 use App\Http\Requests\ExaminationStore\ExamSessionRequest;
 use App\Http\Requests\ExaminationStore\SubmitQuestionRequest;
+use App\Application\ExamOps\DTOs\AllowExamRetakeData;
+use App\Application\ExamOps\DTOs\UpdateMarksData;
+use App\Application\ExamOps\DTOs\VerifyExamListFilterData;
 use App\Application\DevoteeExam\DTOs\SaveExamAnswerData;
-use App\Models\Examination\ExamSessionModel;
 use App\Services\DevoteeExamApplicationService;
 use App\Services\ExamAdminApplicationService;
+use App\Services\ExamOpsApplicationService;
 use App\Services\Examination\ExaminationService;
 use App\Services\Question\QuestionBankService;
 use App\Models\ShikshaLevel;
@@ -27,6 +30,7 @@ class ExaminationController extends Controller
         protected ExaminationService $examinationService,
         protected DevoteeExamApplicationService $devoteeExamApplicationService,
         protected ExamAdminApplicationService $examAdminApplicationService,
+        protected ExamOpsApplicationService $examOpsApplicationService,
         protected QuestionBankService $questionBankService,
     ) {
     }
@@ -71,7 +75,7 @@ class ExaminationController extends Controller
     public function examination()
     {
         $list = $this->examAdminApplicationService->listExaminations();
-        $shikshalevel = ShikshaLevel::where('is_active', 'Y')->get();
+        $shikshalevel = ShikshaLevel::where('is_active', 'Y')->orderBy('id', 'desc')->get();
 
         return Inertia::render('SuperAdmin/examination', [
             'Examination' => $list,
@@ -142,6 +146,21 @@ class ExaminationController extends Controller
         return Inertia::render('SuperAdmin/ViewExamination', [
             'examination' => $examination
         ]);
+    }
+
+    public function edit(Examination $examination)
+    {
+        return response()->json($examination);
+    }
+
+    public function destroy(Examination $examination): RedirectResponse
+    {
+        $deleted = $examination->delete();
+        if ($deleted) {
+            return redirect()->back()->with('success', 'Examination deleted successfully');
+        }
+
+        return redirect()->back()->with('error', 'Examination not found or could not be deleted');
     }
 
     public function getFilterQuestionList(Request $request)
@@ -215,7 +234,7 @@ class ExaminationController extends Controller
 
     public function AllowDevotteToTakeExam()
     {
-        $shikshalevel = $this->examinationService->getExamListToAllowDevotee();
+        $shikshalevel = $this->examOpsApplicationService->allowExamList();
         //dd($shikshalevel);
         $loginid = User::where('devotee_type', 'AD')->get();
         return Inertia::render('SuperAdmin/allowExam', [
@@ -226,12 +245,8 @@ class ExaminationController extends Controller
 
     public function SaveAllowExam(Request $request)
     {
-       // dd($request);
-        $validated = $request->validate([
-            'exam_id' => 'required',
-            'user_id' => 'required',
-        ]);
-        $success = $this->examinationService->allowUserToRetakeExam($request);
+        $dto = AllowExamRetakeData::fromArray($request->all());
+        $success = $this->examOpsApplicationService->allowRetake($dto);
     
         if ($success) {
             return back()->with('success', 'User allowed to retake the exam.');
@@ -246,8 +261,8 @@ class ExaminationController extends Controller
 
     public function verifyexam()
     {
-        $shikshalevel = ShikshaLevel::where('is_active', 'Y')->get()->toArray();
-        $examSession = ExamSessionModel::All()->toArray();
+        $shikshalevel = $this->examOpsApplicationService->shikshaLevels();
+        $examSession = $this->examOpsApplicationService->examSessions();
         return Inertia::render('SuperAdmin/verifyexamlist', [
             'shikshalevel' => $shikshalevel,
             'examSession' => $examSession
@@ -258,9 +273,17 @@ class ExaminationController extends Controller
     {
         $level = explode('_', EncryptionServices::decrypt($encryptedLevel))[0];
         $session = explode('_', EncryptionServices::decrypt($encryptedSession))[0];
-        $shikshalevel = $this->examinationService->getShikshaLevelList();
-        $examinationsessionlist = $this->examinationService->getExaminationSessionList();
-        $list = ($level && $session) ? $this->examinationService->getVerifyExamList($level, $session) : [];
+        $shikshalevel = $this->examOpsApplicationService->shikshaLevels();
+        $examinationsessionlist = $this->examOpsApplicationService->examSessions();
+        $list = [];
+        if ($level && $session) {
+            $list = $this->examOpsApplicationService->verifyExamList(
+                VerifyExamListFilterData::fromArray([
+                    'level' => (int) $level,
+                    'session' => (int) $session,
+                ])
+            );
+        }
         return Inertia::render('SuperAdmin/verifyexamlist', [
             'submittedexam' => $list,
             'shikshalevel' => $shikshalevel,
@@ -270,10 +293,12 @@ class ExaminationController extends Controller
 
     public function updatemarks($sessionID = null, $levelID = null, $loginId = null)
     {
-        $shikshalevel = $this->examinationService->getShikshaLevelList();
-        $loginid = $this->examinationService->getLoginIdList();
-        $sessionList= $this->examinationService->getExaminationSessionList();
-        $list = ($sessionID && $levelID && $loginId) ? $this->examinationService->getSessionResultList($sessionID, $levelID, $loginId) : [];
+        $shikshalevel = $this->examOpsApplicationService->shikshaLevels();
+        $loginid = $this->examOpsApplicationService->loginIds();
+        $sessionList= $this->examOpsApplicationService->examSessions();
+        $list = ($sessionID && $levelID && $loginId)
+            ? $this->examOpsApplicationService->sessionResultList($sessionID, $levelID, $loginId)
+            : [];
         return Inertia::render('SuperAdmin/updatemarks', [
             'devoteeResults' => $list,
             'shikshalevel' => $shikshalevel,
@@ -284,19 +309,8 @@ class ExaminationController extends Controller
     // Controller
     public function saveUpdatedMarks(Request $request)
     {
-        $validated = $request->validate([
-            'login_id' => 'required|string',
-            'exam_id' => 'required|numeric',
-            'exam_level' => 'required',
-            'total_obtain' => 'required|numeric',
-        ]);
-
-        $updatemarks = $this->examinationService->updateMarks(
-            $validated['exam_id'],
-            $validated['exam_level'],
-            $validated['login_id'],
-            $validated['total_obtain']
-        );
+        $dto = UpdateMarksData::fromArray($request->all());
+        $updatemarks = $this->examOpsApplicationService->updateMarks($dto);
         if (!is_array($updatemarks) || empty($updatemarks['success'])) {
             $errorMsg = is_array($updatemarks) && !empty($updatemarks['message'])
                 ? $updatemarks['message']

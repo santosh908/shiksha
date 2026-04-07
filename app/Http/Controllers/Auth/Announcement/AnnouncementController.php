@@ -59,6 +59,16 @@ class AnnouncementController extends Controller
         return redirect()->route('Action.announcement')->with('success', 'Announcement updated successfully!');
     }
 
+    public function edit(Announcements $announcement)
+    {
+        return response()->json($announcement);
+    }
+
+    public function view(Announcements $announcement)
+    {
+        return response()->json($announcement);
+    }
+
     public function getAnnouncementsDescription($id)
     { 
         try {

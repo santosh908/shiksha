@@ -85,19 +85,20 @@ export default function ViewQuestionModal({ QuestionBank, ExamName, ExamId,onQue
 
     const handleDelete = () => {
       if (QuestionToDelete) {
-          if (!validateDeleteParams(QuestionToDelete.id, ExamId)) {
+          const questionKey = String(QuestionToDelete.question_id || QuestionToDelete.id || '');
+          if (!validateDeleteParams(questionKey, ExamId)) {
               return;
           }
 
           const queryParams = new URLSearchParams({
               exam_id: String(ExamId),  // Add relevant query parameters
-              question_id:String(QuestionToDelete.id)
+              question_id: questionKey
           }).toString();
           try {
-              router.delete(`/Action/remove-questions-from-exams/${QuestionToDelete.id}?${queryParams}`, {
+              router.delete(`/Action/remove-questions-from-exams/${questionKey}?${queryParams}`, {
                   onSuccess: () => {
                     setLocalQuestionBank(prevQuestions => 
-                        prevQuestions.filter(q => q.id !== QuestionToDelete.id)
+                        prevQuestions.filter(q => String(q.question_id || q.id) !== questionKey)
                     );
                       setNotificationMessage('Question successfully removed from exam!');
                       setNotificationColor('teal');
@@ -105,7 +106,7 @@ export default function ViewQuestionModal({ QuestionBank, ExamName, ExamId,onQue
                       setOpenedDeleteModal(false);
                       
                       if (onQuestionRemoved) {
-                        onQuestionRemoved(QuestionToDelete.id);
+                        onQuestionRemoved(questionKey);
                     }
                   },
                   onError: (errors) => {
@@ -142,8 +143,12 @@ export default function ViewQuestionModal({ QuestionBank, ExamName, ExamId,onQue
                 //@ts-ignore
                 Cell: ({ row }) => (
                     <Group align="center">
-                        <a href="#" color="red" onClick={() => openDeleteModal(row.original)}>
-                            <IconRecycle size={20} /> Delete {row.original.question_id}
+                        <a
+                            href="#"
+                            onClick={() => openDeleteModal(row.original)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'red', textDecoration: 'none' }}
+                        >
+                            <IconRecycle size={20} /> Delete
                         </a>
                     </Group>
                 ),
@@ -163,7 +168,7 @@ export default function ViewQuestionModal({ QuestionBank, ExamName, ExamId,onQue
                 size="xxl"
             >
                 <DataTable 
-                    data={QuestionBank}
+                    data={localQuestionBank}
                     columnsFields={columns}
                     PageSize={PAGE_SIZE}
                 />

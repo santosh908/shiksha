@@ -5,15 +5,13 @@ namespace App\Http\Controllers\Auth\Report;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Services\Report\ReportServices;
+use App\Services\ReportApplicationService;
 
 class ReportController extends Controller
 {
-    protected $reportServices;
-
-    public function __construct()
-    {
-        $this->reportServices = new reportServices();
+    public function __construct(
+        private readonly ReportApplicationService $reportApplicationService
+    ) {
     }
 
     public function report()
@@ -25,10 +23,10 @@ class ReportController extends Controller
     {
         switch ($type) {
             case 'AllDevotee':
-                $data = $this->reportServices->DevoteeWithALlDetails();
+                $data = $this->reportApplicationService->allDevotee();
                 break;
             case 'NextLevel':
-               $data = $this->reportServices->DevoteeNextExamLevel();
+               $data = $this->reportApplicationService->nextLevel();
                 break;
             // Add more cases as needed
             default:

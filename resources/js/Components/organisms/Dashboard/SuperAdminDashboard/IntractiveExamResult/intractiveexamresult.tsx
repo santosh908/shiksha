@@ -45,7 +45,9 @@ const IntractiveExamResultComponent = () => {
   // Filter exams based on selected shiksha level
   useEffect(() => {
     if (selectedLevel) {
-      const filtered = examList.filter((exam) => exam.exam_level === selectedLevel);
+      const filtered = examList
+        .filter((exam) => String(exam.exam_level) === String(selectedLevel))
+        .sort((a, b) => Number(b.id) - Number(a.id));
       setFilteredExams(filtered);
 
       // Clear selected exam if it's not in the filtered list
@@ -240,8 +242,8 @@ const IntractiveExamResultComponent = () => {
             clearable
           />
           <Select
-            label="Examination"
-            placeholder="Select Examination First"
+            label="Select Session"
+            placeholder="Select Session"
             data={
               filteredExams.map((exam) => ({
                 value: exam.id.toString(),
@@ -267,7 +269,7 @@ const IntractiveExamResultComponent = () => {
             Select Excel File
           </Button>
           <Button onClick={handleUpload} color="teal" loading={uploading} disabled={!file || !selectedExam || !selectedLevel || uploading}>
-            {uploading ? 'Uploading...' : 'Upload Interactive Exam Results'}
+            {uploading ? 'Uploading...' : 'Upload Result'}
           </Button>
         </Group>
 

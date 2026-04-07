@@ -126,7 +126,6 @@ Route::middleware(['checkPermission:Devotee.update'])->group(function () {
     Route::post('/UpdateSpritualInfoThree', [PostRegistrationUserController::class, 'SuperAdminUpdateSpritualInfoThree']);
     Route::get('/BhaktiBhikshukDevoteeList', [PostRegistrationUserController::class, 'SuperAdminGetBhaktiBhikshukDevoteeList']);
     Route::get('/BhaktiBhikshukDevotee', [PostRegistrationUserController::class, 'AshrayLeaderGetBhaktiBhikshukList']);
-    Route::get('/BhaktiBhikshukDevotee', [PostRegistrationUserController::class, 'getBhaktiBhikshukList']);
 });
 
 
@@ -139,7 +138,6 @@ Route::delete('/bhaktibhikshuk/{id}', [BhaktiBhikshukController::class, 'destroy
 
 //Route::get('/dashboard', [SuperAdminController::class, 'superadmindashboard'])->name('Action.dashboard');
 
-Route::get('/changepassword', [ChangePasswordController::class, 'changepassword'])->name('SuperAdmin.changepassword')->middleware(['checkPermission:changepassword.changepassword']);
 Route::get('/changepassword', [ChangePasswordController::class, 'showChangePasswordForm'])->name('Action.changepassword')->middleware(['checkPermission:changepassword.showChangePasswordForm']);
 Route::post('/changepassword', [ChangePasswordController::class, 'changepassword'])->name('Action.updatePassword')->middleware(['checkPermission:changepassword.changepassword']);
 Route::get('/get-login-id/{email}', [ChangePasswordController::class, 'getLoginId'])->name('Action.getLoginId');

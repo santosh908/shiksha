@@ -4,25 +4,19 @@ namespace App\Http\Controllers\Auth\DevoteeResultList;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Services\DevoteeResultList\DevoteeResultListServices;
-use App\Services\Question\QuestionBankService;
+use App\Services\ResultManagementApplicationService;
 use Inertia\Inertia;
 use Illuminate\Http\RedirectResponse;
 
 class ResultListController extends Controller
 {
-    protected $DevoteeResultListServices;
-    protected $QuestionBankService;
-
-
-    public function __construct()
-    {
-        $this->DevoteeResultListServices = new DevoteeResultListServices();
-        $this->QuestionBankService = new QuestionBankService();
+    public function __construct(
+        private readonly ResultManagementApplicationService $resultManagementApplicationService
+    ) {
     }
     public function devoteeresultlist()
     {
-        $list = $this->DevoteeResultListServices->getDevoteeResultList();
+        $list = $this->resultManagementApplicationService->listForSuperAdmin();
         return Inertia::render('SuperAdmin/devoteeresultlist', [
             'devoteeResults' => $list
         ]);
@@ -30,7 +24,7 @@ class ResultListController extends Controller
 
     public function asherydevoteeresultlist()
     {
-        $list = $this->DevoteeResultListServices->getAsheryDevoteeResultList();
+        $list = $this->resultManagementApplicationService->listForAshrayLeader();
         // dd($list);
         return Inertia::render('AsheryLeader/devoteeresultlist', [
             'devoteeResults' => $list
@@ -39,7 +33,7 @@ class ResultListController extends Controller
 
     public function bhaktibhikshukdevoteeresultlist()
     {
-        $list = $this->DevoteeResultListServices->getBhaktiBhikshukDevoteeResultList();
+        $list = $this->resultManagementApplicationService->listForBhaktiVriksha();
         // dd($list);
         return Inertia::render('BhaktiBhekshuk/devoteeresultlist', [
             'devoteeResults' => $list
@@ -53,7 +47,7 @@ class ResultListController extends Controller
             'exam_id' => 'required',
             'shiksha_level' => 'required',
         ]);
-        $result = $this->DevoteeResultListServices->resultAloowPrevent($request->toArray());
+        $result = $this->resultManagementApplicationService->allowPrevent($request->toArray());
         if ($result) {
             return redirect()->back()->with('success', 'Exam updated successfully!');
         }
@@ -96,15 +90,15 @@ class ResultListController extends Controller
         ]);
 
         //dd($validatedData);
-        $publishresultinfo = $this->DevoteeResultListServices->addPublishResult($request);
+        $publishresultinfo = $this->resultManagementApplicationService->publish($request);
         return redirect()->route('SuperAdmin.verifyexam')->with('success', 'Result Public to Result Section successfully!');
 
     }
 
     public function uploadofflinemarks()
     {
-        $examList = $this->DevoteeResultListServices->Examination();
-        $levelList = $this->DevoteeResultListServices->ShikshaLevel();
+        $examList = $this->resultManagementApplicationService->examList();
+        $levelList = $this->resultManagementApplicationService->levelList();
 
         //dd($examList, $levelList);
         return Inertia::render('SuperAdmin/intractiveexamresult', [
@@ -127,7 +121,7 @@ class ResultListController extends Controller
             $selectedExamId = $request->input('examination_id');
             $selectedShikshaLevelId = $request->input('shiksha_level_id');
 
-            $result = $this->DevoteeResultListServices->UploadOfflineMarksExamResult(
+            $result = $this->resultManagementApplicationService->uploadOffline(
                 $file,
                 $selectedShikshaLevelId,
                 $selectedExamId

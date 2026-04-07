@@ -2,21 +2,19 @@
 
 namespace App\Http\Controllers\Auth\ChangePassword;
 
+use App\Application\ChangePassword\DTOs\ChangePasswordData;
 use App\Http\Controllers\Controller;
-use App\Services\ChangePassword\ChangePasswordServices;
+use App\Services\ChangePasswordApplicationService;
 use Inertia\Inertia;
 use App\Http\Requests\ChangePassword\ChangePasswordRequest;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
 
 class ChangePasswordController extends Controller
 {
-    protected $ChangePasswordServices;
-
-    public function __construct()
-    {
-        $this->ChangePasswordServices = new ChangePasswordServices();
+    public function __construct(
+        private readonly ChangePasswordApplicationService $changePasswordApplicationService
+    ) {
     }
 
     public function showChangePasswordForm()
@@ -30,7 +28,8 @@ class ChangePasswordController extends Controller
         $data = $request->validated();
         $user = User::where('email', $request['email'])->first();
         if ($user) {
-            $updatedUser = $this->ChangePasswordServices->UpdatePassword($request);
+            $dto = ChangePasswordData::fromArray($data);
+            $updatedUser = $this->changePasswordApplicationService->update($dto);
 
             // Return success
             return redirect()->route('Action.updatePassword')

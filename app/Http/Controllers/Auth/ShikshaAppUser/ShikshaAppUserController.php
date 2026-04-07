@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Http\Requests\UserRegistrationRequest;
-use App\Services\ShikshaAppUser\ShikshaAppUserServices;
+use App\Services\ShikshaAppUserApplicationService;
 use Illuminate\Http\RedirectResponse;
 use App\Models\User;
 use Illuminate\Support\Facades\Validator;
@@ -17,17 +17,15 @@ use App\Http\Requests\AllUserRequest\AllUserRequest;
 
 class ShikshaAppUserController extends Controller
 {
-    protected $ShikshaAppUserServices;
-
-    public function __construct()
-    {
-        $this->ShikshaAppUserServices = new ShikshaAppUserServices();
+    public function __construct(
+        private readonly ShikshaAppUserApplicationService $shikshaAppUserApplicationService
+    ) {
     }
 
     public function shikshappuser()
     {
-        $adminUserList = $this->ShikshaAppUserServices->ShikshAppUserList();
-        $permissionList = $this->ShikshaAppUserServices->getPermissionList();
+        $adminUserList = $this->shikshaAppUserApplicationService->list();
+        $permissionList = $this->shikshaAppUserApplicationService->permissions();
         // $permissionList = Permission::all();
         $roleList = Role::whereNotIn('name', ['Devotee', 'CoOrdinator'])->get();
         $asheryleader = AsheryLeader::orderBy('ashery_leader_name', 'asc')->get();
@@ -43,7 +41,7 @@ class ShikshaAppUserController extends Controller
     public function shikshappuserStore(AllUserRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $shikhaappuserinfo = $this->ShikshaAppUserServices->createShikshAppUser($request);
+        $shikhaappuserinfo = $this->shikshaAppUserApplicationService->create($request);
         return redirect()->route('Action.ShikshAppUserStore')
             ->with('success', 'Details Saved Successfully!')
             ->with('savedData', $shikhaappuserinfo);
@@ -83,7 +81,7 @@ class ShikshaAppUserController extends Controller
         $validated = $request->validate($rules);
 
         // Update service withd validated data
-        $shikhaappuserinfo = $this->ShikshaAppUserServices->updateShikshAppUser($request);
+        $shikhaappuserinfo = $this->shikshaAppUserApplicationService->update($request);
 
         return redirect()->route('Action.shikshappuser')
             ->with('success', 'Details Updated Successfully!')
@@ -92,12 +90,28 @@ class ShikshaAppUserController extends Controller
 
     public function destroy($id)
     {
-        $shikhaappuserinfo = $this->ShikshaAppUserServices->deleteShikshAppUser($id);
+        $shikhaappuserinfo = $this->shikshaAppUserApplicationService->delete($id);
 
         if ($shikhaappuserinfo) {
             return redirect()->back()->with('success', 'deleted successfully');
         } else {
             return redirect()->back()->with('error', 'AsheryLeader not found or could not be deleted');
         }
+    }
+
+    public function edit($id)
+    {
+        $user = User::with(['roles', 'permissions'])->findOrFail($id);
+        $user->permissions = $user->permissions->pluck('id')->toArray();
+
+        return response()->json($user);
+    }
+
+    public function view($id)
+    {
+        $user = User::with(['roles', 'permissions'])->findOrFail($id);
+        $user->permissions = $user->permissions->pluck('id')->toArray();
+
+        return response()->json($user);
     }
 }

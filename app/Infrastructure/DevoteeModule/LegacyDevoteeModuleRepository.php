@@ -15,7 +15,7 @@ class LegacyDevoteeModuleRepository implements DevoteeModuleRepositoryInterface
 
     public function list(): array
     {
-        return $this->reportServices->DevoteeVewProfile();
+        return $this->reportServices->DevoteeVewProfile()->toArray();
     }
 
     public function details(int|string $id): ?array
