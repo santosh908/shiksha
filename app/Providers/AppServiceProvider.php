@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domain\AsheryLeaderDashboard\Contracts\AsheryLeaderDashboardRepositoryInterface;
 use App\Domain\DevoteeApproval\Contracts\DevoteeApprovalRepositoryInterface;
 use App\Domain\DevoteeExam\Contracts\DevoteeExamRepositoryInterface;
 use App\Domain\DevoteeProfileAdmin\Contracts\DevoteeProfileAdminRepositoryInterface;
@@ -19,6 +20,7 @@ use App\Domain\SessionResult\Contracts\SessionResultRepositoryInterface;
 use App\Domain\Report\Contracts\ReportRepositoryInterface;
 use App\Domain\ExamOps\Contracts\ExamOpsRepositoryInterface;
 use App\Infrastructure\AdminCatalog\LegacyAdminCatalogRepository;
+use App\Infrastructure\AsheryLeaderDashboard\LegacyAsheryLeaderDashboardRepository;
 use App\Infrastructure\ChangePassword\LegacyChangePasswordRepository;
 use App\Infrastructure\DevoteeApproval\LegacyDevoteeApprovalRepository;
 use App\Infrastructure\DevoteeExam\LegacyDevoteeExamRepository;
@@ -62,6 +64,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SessionResultRepositoryInterface::class, LegacySessionResultRepository::class);
         $this->app->bind(ReportRepositoryInterface::class, LegacyReportRepository::class);
         $this->app->bind(ExamOpsRepositoryInterface::class, LegacyExamOpsRepository::class);
+        $this->app->bind(AsheryLeaderDashboardRepositoryInterface::class, LegacyAsheryLeaderDashboardRepository::class);
     }
 
     /**

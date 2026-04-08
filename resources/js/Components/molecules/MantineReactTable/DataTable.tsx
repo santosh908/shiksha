@@ -198,32 +198,38 @@ const createHeaderMapping = (columns: any) => {
   return mapping;
 };
 
-// Utility function to flatten data for export with proper headers
+// Utility function to flatten data for export with proper headers.
+// It supports both accessorKey and computed accessorFn columns.
 const flattenAndFilterData = (rows: T[], columns: any) => {
-  const allowedKeys = columns.map((col: any) => col.accessorKey);
-  const headerMapping = createHeaderMapping(columns);
+  const exportableColumns = columns.filter((col: any) => !!col.accessorKey || typeof col.accessorFn === 'function');
 
   return rows.map((row) => {
     const flattenedRow: { [key: string]: any } = {};
-    for (const key in row) {
-      if (allowedKeys.includes(key)) {
-        const value = row[key];
-        const headerName = headerMapping[key] || key;
 
-        // ✅ Check if the key is dob OR ends with "date" OR looks like a date string
-        const isDateField =
-          key.toLowerCase().includes("date") ||
-          key.toLowerCase() === "dob" ||
-          (typeof value === "string" && !isNaN(Date.parse(value)));
+    exportableColumns.forEach((col: any) => {
+      const headerName = col.header || col.accessorKey || 'Column';
+      let value: any = '';
 
-        flattenedRow[headerName] =
-          isDateField && value
-            ? dateFormate(value) // format dd/MM/yyyy
-            : typeof value === "object" && value !== null
-            ? JSON.stringify(value)
-            : value;
+      if (typeof col.accessorFn === 'function') {
+        value = col.accessorFn(row);
+      } else if (col.accessorKey) {
+        value = row[col.accessorKey];
       }
-    }
+
+      const keyForDateCheck = String(col.accessorKey || headerName).toLowerCase();
+      const isDateField =
+        keyForDateCheck.includes('date') ||
+        keyForDateCheck === 'dob' ||
+        (typeof value === 'string' && !isNaN(Date.parse(value)));
+
+      flattenedRow[headerName] =
+        isDateField && value
+          ? dateFormate(value)
+          : typeof value === 'object' && value !== null
+          ? JSON.stringify(value)
+          : value;
+    });
+
     return flattenedRow;
   });
 };

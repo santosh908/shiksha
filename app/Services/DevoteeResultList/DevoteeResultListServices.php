@@ -297,134 +297,315 @@ class DevoteeResultListServices
     }
     public function UploadOfflineMarksExamResult($file, $selectedShikshaLevelId, $selectedExamId)
     {
-        try {
-            $spreadsheet = IOFactory::load($file->getPathname());
-            $worksheet = $spreadsheet->getActiveSheet();
-            $data = $worksheet->toArray(null, true, true, true);
-            $errors = [];
-            $rowNumber = 1;
-            $successCount = 0;
-            $mismatchFound = false;
+        $spreadsheet = IOFactory::load($file->getPathname());
+        $worksheet = $spreadsheet->getActiveSheet();
+        $data = $worksheet->toArray(null, true, true, true);
 
-            foreach ($data as $index => $row) {
-                // Skip header row
-                if ($index === 1)
-                    continue;
-                $rowNumber++;
-
-                $rowErrors = [];
-
-                $loginId = $row['A'];
-                $user = User::where('login_id', $loginId)->first();
-                if (!$user) {
-                    $rowErrors[] = "Row {$rowNumber}: Login ID '{$loginId}' not found";
-                }
-
-                $shikshaLevelId = $row['B'];
-                $shikshaLevel = ShikshaLevel::where('id', $shikshaLevelId)->first();
-                if (!$shikshaLevel) {
-                    $rowErrors[] = "Row {$rowNumber}: Shiksha Level ID '{$shikshaLevelId}' not found";
-                }
-
-                $examId = $row['C'];
-                $exam = Examination::where('id', $examId)->first();
-                if (!$exam) {
-                    $rowErrors[] = "Row {$rowNumber}: Exam ID '{$examId}' not found";
-                }
-
-                if ($examId != $selectedExamId) {
-                    $rowErrors[] = "Row {$rowNumber}: Exam ID in file ('{$examId}') does not match selected Exam ID ('{$selectedExamId}')";
-                    $mismatchFound = true;
-                }
-
-
-                if ($shikshaLevelId != $selectedShikshaLevelId) {
-                    $rowErrors[] = "Row {$rowNumber}: Shiksha Level ID in file ('{$shikshaLevelId}') does not match selected Shiksha Level ID ('{$selectedShikshaLevelId}')";
-                    $mismatchFound = true;
-                }
-
-                if (!empty($rowErrors)) {
-                    $errors = array_merge($errors, $rowErrors);
-                    continue;
-                }
-
-
-                $isQualifiedInput = strtoupper(trim($row['H']));
-                $isQualified = ($isQualifiedInput === 'TRUE') ? '1' : '0';
-
-
-                $isPromotedInput = strtoupper(trim($row['I'] ?? 'FALSE'));
-                $isPromoted = ($isPromotedInput === 'TRUE') ? '1' : '0';
-
-                $rowTotalMarks = (float) ($row['F'] ?? 0);
-                $rowObtainedMarks = (float) ($row['G'] ?? 0);
-                $qualifyingMarks = (float) ($exam->qualifying_marks ?? 0);
-                $examTotalMarks = (float) ($exam->total_marks ?? 0);
-
-                if ($rowTotalMarks !== $examTotalMarks) {
-                    $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}'): Column F total marks '{$row['F']}' does not match exam total marks '{$exam->total_marks}'.";
-                }
-
-                if ($isQualified === '1' && $rowObtainedMarks < $qualifyingMarks) {
-                    $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}') record is not valid: Column H is TRUE but obtained marks '{$row['G']}' are below qualifying marks '{$exam->qualifying_marks}'. Please check qualified marks.";
-                }
-
-                if ($isQualified === '0' && $rowObtainedMarks >= $qualifyingMarks) {
-                    $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}') record is not valid: Column H is FALSE but obtained marks '{$row['G']}' meet/exceed qualifying marks '{$exam->qualifying_marks}'. Please check qualified marks.";
-                }
-
-                if (!empty($rowErrors)) {
-                    $errors = array_merge($errors, $rowErrors);
-                    continue;
-                }
-
-                $existingRecord = DB::table('shiksah_lavel_completed')
-                    ->where('login_id', $loginId)
-                    ->where('exam_id', $examId)
-                    ->where('shiksha_level', $shikshaLevelId)
-                    ->first();
-
-                if ($existingRecord) {
-                    $errors[] = "Row {$rowNumber}: Duplicate entry for Login ID '{$loginId}', Shiksha Level '{$shikshaLevelId}', and Exam ID '{$examId}'.";
-                    continue;
-                }
-
-                if ($mismatchFound) {
-                    continue;
-                }
-
-                $recordData = [
-                    'login_id' => $loginId,
-                    'shiksha_level' => $shikshaLevelId,
-                    'exam_date' => $row['D'],
-                    'total_questions' => $row['E'],
-                    'total_marks' => $row['F'],
-                    'total_obtain' => $row['G'],
-                    'is_qualified' => $isQualified,
-                    'is_promoted_by_ashray_leader' => $isPromoted,
-                    'ashray_leader_code' => UserAssignAshrayLeader::where('user_id', $user->id)->value('ashray_leader_code'),
-                    'exam_id' => $examId,
-                    'certificate_number' =>$this->getCertificate($shikshaLevelId, $exam->exam_session, $examId),
-                    'certificate_issued' => $isQualified == '1' ? '1' : '0',
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ];
-
-                DB::table('shiksah_lavel_completed')->insert($recordData);
-                $successCount++;
-            }
-
-            if (!empty($errors)) {
-                throw new \Exception(implode("\n", $errors));
-            }
-
-            return [
-                'success' => true,
-                'message' => 'Successfully uploaded ' . $successCount . ' exam results.'
-            ];
-        } catch (\Exception $e) {
-            throw $e;
+        $selectedExam = Examination::find($selectedExamId);
+        $selectedLevel = ShikshaLevel::find($selectedShikshaLevelId);
+        if (!$selectedExam || !$selectedLevel) {
+            throw new \Exception('Selected exam or shiksha level is invalid.');
         }
+
+        $isWrittenLevelUpload = (string) $selectedShikshaLevelId === '7';
+        $assignmentMarksByLoginId = [];
+        if ($isWrittenLevelUpload) {
+            $levelSixExamIds = Examination::query()
+                ->where('exam_session', $selectedExam->exam_session)
+                ->where('exam_level', 6)
+                ->pluck('id')
+                ->all();
+
+            if (empty($levelSixExamIds)) {
+                throw new \Exception('Please upload assignment marks before uploading written marks.');
+            }
+
+            $assignmentRows = DB::table('shiksah_lavel_completed')
+                ->select('login_id', DB::raw('MAX(total_obtain) as assignment_obtain'))
+                ->whereIn('exam_id', $levelSixExamIds)
+                ->where('shiksha_level', 6)
+                ->groupBy('login_id')
+                ->get();
+
+            if ($assignmentRows->isEmpty()) {
+                throw new \Exception('Please upload assignment marks before uploading written marks.');
+            }
+
+            foreach ($assignmentRows as $assignmentRow) {
+                $assignmentMarksByLoginId[$assignmentRow->login_id] = (float) $assignmentRow->assignment_obtain;
+            }
+        }
+
+        $parsedRows = [];
+        $loginIds = [];
+        foreach ($data as $index => $row) {
+            if ($index === 1) {
+                continue;
+            }
+
+            $loginId = trim((string) ($row['A'] ?? ''));
+            $parsedRows[] = [
+                'row_number' => $index,
+                'login_id' => $loginId,
+                'shiksha_level_id' => trim((string) ($row['B'] ?? '')),
+                'exam_id' => trim((string) ($row['C'] ?? '')),
+                'exam_date' => $row['D'] ?? null,
+                'total_questions' => $row['E'] ?? null,
+                'total_marks' => $row['F'] ?? null,
+                'total_obtain' => $row['G'] ?? null,
+                'is_qualified_raw' => strtoupper(trim((string) ($row['H'] ?? ''))),
+                'is_promoted_raw' => strtoupper(trim((string) ($row['I'] ?? 'FALSE'))),
+            ];
+            if ($loginId !== '') {
+                $loginIds[] = $loginId;
+            }
+        }
+
+        $loginIds = array_values(array_unique($loginIds));
+        $users = User::whereIn('login_id', $loginIds)->get()->keyBy('login_id');
+        $leaderCodesByUserId = UserAssignAshrayLeader::whereIn('user_id', $users->pluck('id')->all())
+            ->pluck('ashray_leader_code', 'user_id');
+
+        $existingRecords = DB::table('shiksah_lavel_completed')
+            ->where('exam_id', $selectedExamId)
+            ->where('shiksha_level', $selectedShikshaLevelId)
+            ->whereIn('login_id', $loginIds)
+            ->pluck('login_id')
+            ->all();
+        $existingLoginIds = array_flip($existingRecords);
+
+        $failedItems = [];
+        $insertRows = [];
+        $alreadyQueuedLoginIds = [];
+        $successCount = 0;
+
+        foreach ($parsedRows as $row) {
+            $rowErrors = [];
+            $rowNumber = $row['row_number'];
+            $loginId = $row['login_id'];
+            $examId = $row['exam_id'];
+            $shikshaLevelId = $row['shiksha_level_id'];
+
+            if ($loginId === '') {
+                $rowErrors[] = "Row {$rowNumber}: Login ID is required.";
+            } elseif (!$users->has($loginId)) {
+                $rowErrors[] = "Row {$rowNumber}: Login ID '{$loginId}' not found.";
+            }
+
+            if ((string) $shikshaLevelId !== (string) $selectedShikshaLevelId) {
+                $rowErrors[] = "Row {$rowNumber}: Shiksha Level ID in file ('{$shikshaLevelId}') does not match selected Shiksha Level ID ('{$selectedShikshaLevelId}').";
+            }
+
+            if ((string) $examId !== (string) $selectedExamId) {
+                $rowErrors[] = "Row {$rowNumber}: Exam ID in file ('{$examId}') does not match selected Exam ID ('{$selectedExamId}').";
+            }
+
+            $isQualifiedRaw = preg_replace('/\s+/u', '', (string) $row['is_qualified_raw']);
+            $isQualifiedRaw = ltrim(strtoupper($isQualifiedRaw), '=');
+            $isQualifiedNormalized = match ($isQualifiedRaw) {
+                'T', 'TRUE', '1', 'Y', 'YES' => 'TRUE',
+                'F', 'FALSE', '0', 'N', 'NO', '' => 'FALSE',
+                default => null,
+            };
+            if ($isQualifiedNormalized === null) {
+                $isQualifiedNormalized = match ((string) $row['is_qualified_raw']) {
+                    '1', '1.0' => 'TRUE',
+                    '0', '0.0' => 'FALSE',
+                    default => null,
+                };
+            }
+            if ($isQualifiedNormalized === null) {
+                $isQualifiedNormalized = match (trim((string) $row['is_qualified_raw'])) {
+                    '1', '1.0' => 'TRUE',
+                    '0', '0.0' => 'FALSE',
+                    default => null,
+                };
+            }
+            if ($isQualifiedNormalized === null) {
+                $isQualifiedNormalized = match ((string) $row['is_qualified_raw']) {
+                    'true', 'TRUE' => 'TRUE',
+                    'false', 'FALSE' => 'FALSE',
+                    default => null,
+                };
+            }
+            if ($isQualifiedNormalized === null) {
+                $isQualifiedNormalized = match ((string) ($row['H'] ?? '')) {
+                'TRUE', '1', 'Y', 'YES' => 'TRUE',
+                'FALSE', '0', 'N', 'NO', '' => 'FALSE',
+                default => null,
+                };
+            }
+            if ($isQualifiedNormalized === null) {
+                $rowErrors[] = "Row {$rowNumber}: Column H (is_qualified) must be TRUE or FALSE.";
+            }
+
+            $isPromotedRaw = preg_replace('/\s+/u', '', (string) $row['is_promoted_raw']);
+            $isPromotedRaw = ltrim(strtoupper($isPromotedRaw), '=');
+            $isPromotedNormalized = match ($isPromotedRaw) {
+                'T', 'TRUE', '1', 'Y', 'YES' => 'TRUE',
+                'F', 'FALSE', '0', 'N', 'NO', '' => 'FALSE',
+                default => null,
+            };
+            if ($isPromotedNormalized === null) {
+                // Be tolerant for Excel formatting variants; treat unknown as FALSE.
+                $isPromotedNormalized = 'FALSE';
+            }
+
+            $rowTotalMarks = is_numeric($row['total_marks']) ? (float) $row['total_marks'] : null;
+            $rowObtainedMarks = is_numeric($row['total_obtain']) ? (float) $row['total_obtain'] : null;
+            if ($rowTotalMarks === null) {
+                $rowErrors[] = "Row {$rowNumber}: Column F (total_marks) must be numeric.";
+            }
+            if ($rowObtainedMarks === null) {
+                $rowErrors[] = "Row {$rowNumber}: Column G (obtained_marks) must be numeric.";
+            }
+
+            $qualifyingMarks = (float) ($selectedExam->qualifying_marks ?? 0);
+            $examTotalMarks = (float) ($selectedExam->total_marks ?? 0);
+            if ($rowTotalMarks !== null && $rowTotalMarks !== $examTotalMarks) {
+                $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}'): Column F total marks '{$row['total_marks']}' does not match exam total marks '{$selectedExam->total_marks}'.";
+            }
+
+            $computedIsQualified = null;
+            if ($rowObtainedMarks !== null && $isQualifiedNormalized !== null) {
+                if ($isWrittenLevelUpload) {
+                    if (!isset($assignmentMarksByLoginId[$loginId])) {
+                        $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}'): Please upload assignment marks before uploading written marks.";
+                    } else {
+                        $assignmentObtain = (float) $assignmentMarksByLoginId[$loginId];
+                        $combinedMarks = $assignmentObtain + $rowObtainedMarks;
+                        $computedIsQualified = $combinedMarks > 98 ? '1' : '0';
+                        $excelQualified = $isQualifiedNormalized === 'TRUE' ? '1' : '0';
+                        if ($computedIsQualified !== $excelQualified) {
+                            $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}'): Column H does not match qualification rule. Assignment ({$assignmentObtain}) + Written ({$rowObtainedMarks}) = {$combinedMarks}; expected H = " . ($computedIsQualified === '1' ? 'TRUE' : 'FALSE') . '.';
+                        }
+                    }
+                } else {
+                    $computedIsQualified = $rowObtainedMarks >= $qualifyingMarks ? '1' : '0';
+                    $excelQualified = $isQualifiedNormalized === 'TRUE' ? '1' : '0';
+                    if ($computedIsQualified !== $excelQualified) {
+                        if ($excelQualified === '1') {
+                            $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}'): Column H is TRUE but obtained marks '{$row['total_obtain']}' are below qualifying marks '{$selectedExam->qualifying_marks}'.";
+                        } else {
+                            $rowErrors[] = "Row {$rowNumber} (Login ID '{$loginId}'): Column H is FALSE but obtained marks '{$row['total_obtain']}' meet/exceed qualifying marks '{$selectedExam->qualifying_marks}'.";
+                        }
+                    }
+                }
+            }
+
+            if ($loginId !== '' && isset($existingLoginIds[$loginId])) {
+                $rowErrors[] = "Row {$rowNumber}: Duplicate entry for Login ID '{$loginId}', Shiksha Level '{$selectedShikshaLevelId}', and Exam ID '{$selectedExamId}'.";
+            }
+
+            if ($loginId !== '' && isset($alreadyQueuedLoginIds[$loginId])) {
+                $rowErrors[] = "Row {$rowNumber}: Duplicate Login ID '{$loginId}' found multiple times in uploaded file for selected exam/level.";
+            }
+
+            if (!empty($rowErrors)) {
+                $failedItem = [
+                    'row_number' => $rowNumber,
+                    'login_id' => $loginId,
+                    'reasons' => $rowErrors,
+                ];
+                if ($isWrittenLevelUpload) {
+                    $assignmentObtain = isset($assignmentMarksByLoginId[$loginId]) ? (float) $assignmentMarksByLoginId[$loginId] : null;
+                    $writtenObtain = $rowObtainedMarks;
+                    $failedItem['assignment_obtain'] = $assignmentObtain;
+                    $failedItem['written_obtain'] = $writtenObtain;
+                    $failedItem['combined_obtain'] = ($assignmentObtain !== null && $writtenObtain !== null)
+                        ? ($assignmentObtain + $writtenObtain)
+                        : null;
+                }
+                $failedItems[] = $failedItem;
+                continue;
+            }
+
+            $user = $users->get($loginId);
+            $ashrayLeaderCode = $leaderCodesByUserId[$user->id] ?? null;
+            if ($ashrayLeaderCode === null) {
+                $failedItem = [
+                    'row_number' => $rowNumber,
+                    'login_id' => $loginId,
+                    'reasons' => ["Ashray leader mapping not found for this user."],
+                ];
+                if ($isWrittenLevelUpload) {
+                    $assignmentObtain = isset($assignmentMarksByLoginId[$loginId]) ? (float) $assignmentMarksByLoginId[$loginId] : null;
+                    $writtenObtain = $rowObtainedMarks;
+                    $failedItem['assignment_obtain'] = $assignmentObtain;
+                    $failedItem['written_obtain'] = $writtenObtain;
+                    $failedItem['combined_obtain'] = ($assignmentObtain !== null && $writtenObtain !== null)
+                        ? ($assignmentObtain + $writtenObtain)
+                        : null;
+                }
+                $failedItems[] = $failedItem;
+                continue;
+            }
+
+            $isQualified = $computedIsQualified ?? (($isQualifiedNormalized ?? 'FALSE') === 'TRUE' ? '1' : '0');
+            $certificateIssued = $isQualified === '1' ? '1' : '0';
+            $certificateNumber = $isQualified === '1'
+                ? $this->getCertificate((string) $selectedShikshaLevelId, $selectedExam->exam_session, (string) $selectedExamId)
+                : null;
+
+            $insertRows[] = [
+                'login_id' => $loginId,
+                'shiksha_level' => $selectedShikshaLevelId,
+                'exam_date' => $row['exam_date'],
+                'total_questions' => $row['total_questions'],
+                'total_marks' => $row['total_marks'],
+                'total_obtain' => $row['total_obtain'],
+                'is_qualified' => $isQualified,
+                'is_promoted_by_ashray_leader' => ($isPromotedNormalized ?? 'FALSE') === 'TRUE' ? '1' : '0',
+                'ashray_leader_code' => $ashrayLeaderCode,
+                'exam_id' => $selectedExamId,
+                'certificate_number' => $certificateNumber,
+                'certificate_issued' => $certificateIssued,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+            $alreadyQueuedLoginIds[$loginId] = true;
+            $successCount++;
+        }
+
+        if (!empty($insertRows)) {
+            DB::table('shiksah_lavel_completed')->insert($insertRows);
+        }
+
+        $failedRows = [];
+        $failedLoginIds = [];
+        foreach ($failedItems as $item) {
+            $failedLoginId = trim((string) ($item['login_id'] ?? ''));
+            $rowNo = $item['row_number'];
+            $reasons = $item['reasons'] ?? [];
+            $reasonText = implode(' | ', $reasons);
+            $extraContext = '';
+            if ($isWrittenLevelUpload) {
+                $assignment = $item['assignment_obtain'] ?? null;
+                $written = $item['written_obtain'] ?? null;
+                $combined = $item['combined_obtain'] ?? null;
+                $assignmentText = $assignment !== null ? (string) $assignment : 'N/A';
+                $writtenText = $written !== null ? (string) $written : 'N/A';
+                $combinedText = $combined !== null ? (string) $combined : 'N/A';
+                $extraContext = " [Assignment={$assignmentText}, Written={$writtenText}, Total={$combinedText}]";
+            }
+            if ($failedLoginId !== '') {
+                $failedRows[] = "Row {$rowNo} (Login ID '{$failedLoginId}'): {$reasonText}{$extraContext}";
+                $failedLoginIds[] = $failedLoginId;
+            } else {
+                $failedRows[] = "Row {$rowNo}: {$reasonText}{$extraContext}";
+            }
+        }
+
+        $failedLoginIds = array_values(array_unique($failedLoginIds));
+
+        return [
+            'success' => $successCount > 0,
+            'uploaded_count' => $successCount,
+            'failed_count' => count($failedItems),
+            'failed_rows' => $failedRows,
+            'failed_login_ids' => $failedLoginIds,
+            'message' => "Uploaded {$successCount} rows. " . count($failedItems) . ' rows were skipped due to validation.',
+        ];
     }
 
     public function getCertificate($LevelId, $sessionId, $examId)

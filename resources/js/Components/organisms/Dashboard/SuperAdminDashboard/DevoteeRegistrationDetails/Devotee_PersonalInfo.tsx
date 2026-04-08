@@ -368,11 +368,7 @@ export default function Devotee_PersonalInfo({ masterData, handleNext }: Persona
               <Button type="submit" color="yellow" onClick={() => router.visit(`/Action/devoteeList`)}>
                 <IconListCheck size={20} /> Back To DevoteeList
               </Button>
-            ) : (
-              <Button type="submit" color="blue" onClick={() => router.visit('/Action/partiallydevoteeList')}>
-                <IconListCheck size={20} /> Back to Partially Devotee List
-              </Button>
-            )}
+            ) : null}
             {masterData?.PersonalInfo?.personal_info === 'Y' ? (
               <Button type="submit" color="green" onClick={handleSubmit}>
                 <IconSend size={20} /> Update

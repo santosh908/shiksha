@@ -93,7 +93,7 @@ class ExaminationController extends Controller
             $this->examinationPayloadFromRequest($request)
         );
 
-        return redirect()->route('Action.ExaminationStore')
+        return redirect()->route('Action.examination')
             ->with('success', 'Examination Details Saved Successfully!')
             ->with('savedData', $examinationinfo);
     }

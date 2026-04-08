@@ -1,10 +1,10 @@
-import IntractiveExamResultComponent from '@/Components/organisms/Dashboard/SuperAdminDashboard/IntractiveExamResult/intractiveexamresult';
+import UploadOfflineMarksComponent from '@/Components/organisms/Dashboard/SuperAdminDashboard/IntractiveExamResult/uploadofflinemarks';
 import Dashboard from '@/Layouts/DashboardLayout/DashboardLayout1/Dashboard';
 
 function PageComponent() {
   return (
     <Dashboard>
-      <IntractiveExamResultComponent />
+      <UploadOfflineMarksComponent />
     </Dashboard>
   );
 }

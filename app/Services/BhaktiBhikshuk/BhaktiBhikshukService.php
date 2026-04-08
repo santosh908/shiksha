@@ -7,6 +7,7 @@ use App\Models\BhaktiBhekshuk;
 use App\Models\User;
 use App\Support\Auth\UserEffectivePermissionsCache;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class BhaktiBhikshukService
 {
@@ -85,6 +86,9 @@ class BhaktiBhikshukService
             $baktiVrikshuk->bhakti_bhikshuk_name = $request['Initiated_name'];
             $baktiVrikshuk->ashray_leader_code = $request['code'];
             $baktiVrikshuk->is_active = $request['is_active'];
+            if (isset($request['updated_by_actor_id']) && Schema::hasColumn('bhakti_bhekshuk', 'updated_by')) {
+                $baktiVrikshuk->updated_by = $request['updated_by_actor_id'];
+            }
             $baktiVrikshuk->save();
         }
         return $baktiVrikshuk;

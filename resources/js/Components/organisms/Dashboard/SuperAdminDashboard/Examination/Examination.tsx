@@ -122,46 +122,56 @@ export default function Examination() {
   //   setDebugInfo(debug);
   // }, [ExamSession, shikshalevel, Examination, filteredExamLevelIds, form.values]);
 
-  // IMPROVED: Ensure edit includes own level in Select options
-useEffect(() => {
-  if (!currentExamination) return;
+  const computeAvailableExamLevelIds = (sessionIdRaw: string | null, includeLevelIdRaw?: string | null): string[] => {
+    if (!sessionIdRaw) {
+      return [];
+    }
 
-  form.setValues({
-    id: currentExamination.id,
-    exam_session_id: currentExamination.exam_session_id?.toString() || '',
-    exam_level_id: currentExamination.exam_level_id?.toString() || '',
-    remarks: currentExamination.remarks || '',
-    date: currentExamination.date || '',
-    start_time: currentExamination.start_time?.substring(0, 5) || '',
-    duration: currentExamination.duration?.toString() || '',
-    no_of_question: currentExamination.no_of_question?.toString() || '',
-    total_marks: currentExamination.total_marks?.toString() || '',
-    qualifying_marks: currentExamination.qualifying_marks?.toString() || '',
-    is_active: currentExamination.is_active === 'N' ? 'N' : 'Y',
-  });
+    const sessionId = Number(sessionIdRaw);
+    if (!sessionId) {
+      return [];
+    }
 
-  const sessionId = Number(currentExamination.exam_session_id);
-  const examsInSession = Examination.filter(
-    (exam) => exam.exam_session_id === sessionId
-  );
+    const examsInSession = (Examination || []).filter((exam) => Number(exam.exam_session_id) === sessionId);
+    const existingExamLevelIds = examsInSession.map((exam) => Number(exam.exam_level_id));
+    const includeLevelId = includeLevelIdRaw ? Number(includeLevelIdRaw) : null;
 
-  const existingExamLevelIds = examsInSession.map(
-    (exam) => exam.exam_level_id
-  );
+    return (shikshalevel || [])
+      .filter((level) => {
+        const levelId = Number(level.id);
+        if (!levelId) {
+          return false;
+        }
+        return !existingExamLevelIds.includes(levelId) || (includeLevelId !== null && includeLevelId === levelId);
+      })
+      .map((level) => level.id);
+  };
 
-  const availableLevels = shikshalevel
-    .filter((level) => {
-      const levelId = Number(level.id);
-      return (
-        levelId &&
-        (!existingExamLevelIds.includes(levelId) ||
-          levelId === Number(currentExamination.exam_level_id))
-      );
-    })
-    .map((level) => level.id);
+  // Keep form values in sync when entering edit mode.
+  useEffect(() => {
+    if (!currentExamination) return;
 
-  setFilteredExamLevelIds(availableLevels as string[]);
-}, [currentExamination]); // ✅ ONLY THIS
+    form.setValues({
+      id: currentExamination.id,
+      exam_session_id: currentExamination.exam_session_id?.toString() || '',
+      exam_level_id: currentExamination.exam_level_id?.toString() || '',
+      remarks: currentExamination.remarks || '',
+      date: currentExamination.date || '',
+      start_time: currentExamination.start_time?.substring(0, 5) || '',
+      duration: currentExamination.duration?.toString() || '',
+      no_of_question: currentExamination.no_of_question?.toString() || '',
+      total_marks: currentExamination.total_marks?.toString() || '',
+      qualifying_marks: currentExamination.qualifying_marks?.toString() || '',
+      is_active: currentExamination.is_active === 'N' ? 'N' : 'Y',
+    });
+  }, [currentExamination]);
+
+  // Recompute available levels whenever session/data/edit-state changes.
+  useEffect(() => {
+    const includeLevelId = isEditing ? form.values.exam_level_id : null;
+    const availableIds = computeAvailableExamLevelIds(form.values.exam_session_id || null, includeLevelId);
+    setFilteredExamLevelIds(availableIds);
+  }, [form.values.exam_session_id, form.values.exam_level_id, Examination, shikshalevel, isEditing]);
 
 
   const { errors } = usePage().props;
@@ -245,29 +255,7 @@ useEffect(() => {
       setFilteredExamLevelIds([]);
       return;
     }
-    const sessionId = Number(selectedSessionId);
-    if (!Examination || Examination.length === 0) {
-      const allLevelIds = shikshalevel.map(level => level.id).filter(Boolean);
-      setFilteredExamLevelIds(allLevelIds as string[]);
-      return;
-    }
-    const examsInSession = Examination.filter(exam => exam.exam_session_id === sessionId);
-
-    if (examsInSession.length === 0) {
-      const allLevelIds = shikshalevel.map(level => level.id).filter(Boolean);
-      setFilteredExamLevelIds(allLevelIds as string[]);
-    } else {
-      const existingExamLevelIds = examsInSession.map(exam => exam.exam_level_id);
-
-      const availableLevels = shikshalevel
-        .filter(level => {
-          const levelId = level.id ? Number(level.id) : null;
-          return levelId && !existingExamLevelIds.includes(levelId);
-        })
-        .map(level => level.id);
-
-      setFilteredExamLevelIds(availableLevels as string[]);
-    }
+    setFilteredExamLevelIds(computeAvailableExamLevelIds(selectedSessionId, isEditing ? form.values.exam_level_id : null));
   };
 
   const PAGE_SIZE = 10;

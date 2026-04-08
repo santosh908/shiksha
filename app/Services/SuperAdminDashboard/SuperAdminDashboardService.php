@@ -31,9 +31,14 @@ class SuperAdminDashboardService
                 $query->whereNull('professional_information.status_code')
                     ->orWhere('professional_information.status_code', 'N');
             })
-            ->count();
-        $approvedevoteeCount = ProfessionalInformation::where('status_code', 'A')->count();
-        $notapprovedevoteeCount = ProfessionalInformation::where('status_code', 'S')->count();
+            ->distinct('users.id')
+            ->count('users.id');
+        $approvedevoteeCount = ProfessionalInformation::where('status_code', 'A')
+            ->distinct('user_id')
+            ->count('user_id');
+        $notapprovedevoteeCount = ProfessionalInformation::where('status_code', 'S')
+            ->distinct('user_id')
+            ->count('user_id');
         $coordinatorCount = User::where('devotee_type', 'CA')->count();
 
         // Return all counts as an array

@@ -929,12 +929,12 @@ class PostRegistraionService
         if ($user && $user->hasRole('AsheryLeader')) {
             $asheryLeader = AsheryLeader::where('user_id', $user->id)->first();
             if ($asheryLeader) {
-                $query->where('ashray_leader_code', '=', $asheryLeader->code);
+                $query->where('ual.ashray_leader_code', '=', $asheryLeader->code);
             }
         }
 
         if ($user && $user->hasRole('BhaktiVriksha')) {
-            $query->where('bhakti_vriksha_user_id', '=', $user->id);
+            $query->where('bb.user_id', '=', $user->id);
         }
 
         $status = strtolower(trim((string) request()->input('status', '')));
@@ -958,9 +958,9 @@ class PostRegistraionService
                 $statusCode = 'P';
             }
             if ($statusCode === 'P') {
-                $query->whereIn(DB::raw("COALESCE(NULLIF(status_code, ''), 'P')"), ['P', 'N']);
+                $query->whereIn(DB::raw("COALESCE(NULLIF(pi.status_code, ''), 'P')"), ['P', 'N']);
             } else {
-                $query->whereRaw("COALESCE(NULLIF(status_code, ''), 'P') = ?", [$statusCode]);
+                $query->whereRaw("COALESCE(NULLIF(pi.status_code, ''), 'P') = ?", [$statusCode]);
             }
         }
 
@@ -1147,7 +1147,7 @@ class PostRegistraionService
                 $professionalInfo->devoteeMemorisePrayer()->syncWithoutDetaching($request->MemorisedPrayers);
             }
 
-            if (!empty($request->BooksRead)) {
+            if (!empty($request->Seminar)) {
                 // Sync the books read without detaching existing relationships
                 $professionalInfo->devoteeAttendedSeminar()->syncWithoutDetaching($request->Seminar);
             }

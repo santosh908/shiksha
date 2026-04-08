@@ -16,7 +16,13 @@ interface ShikshaLevel {
   is_active: string;
 }
 
-const IntractiveExamResultComponent = () => {
+type FlashInfo = {
+  uploaded?: number;
+  failed?: number;
+  failed_login_ids?: string[];
+};
+
+const UploadOfflineMarksComponent = () => {
   const [file, setFile] = useState<File | null>(null);
   const [selectedExam, setSelectedExam] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
@@ -30,10 +36,41 @@ const IntractiveExamResultComponent = () => {
   const [filteredExams, setFilteredExams] = useState<Examination[]>([]);
 
   // Get props from the page
-  const { examList, levelList } = usePage<{
+  const page = usePage<{
     examList: Examination[];
     levelList: ShikshaLevel[];
-  }>().props;
+    flash?: { success?: string; error?: string; info?: FlashInfo };
+    errors?: { error?: string[] | string };
+  }>();
+  const { examList, levelList, flash, errors: serverErrors } = page.props;
+
+  useEffect(() => {
+    const errorMessage = serverErrors?.error;
+    const errorList = Array.isArray(errorMessage) ? errorMessage : errorMessage ? [errorMessage] : [];
+    if (errorList.length > 0) {
+      setErrors(errorList);
+      setNotificationMessage('Some rows were skipped due to validation. Please check the details below.');
+      setNotificationColor('red');
+      setShowNotification(true);
+      return;
+    }
+
+    if (flash?.success) {
+      setErrors([]);
+      setNotificationMessage(flash.success);
+      setNotificationColor('teal');
+      setShowNotification(true);
+      return;
+    }
+
+    if (flash?.error) {
+      setErrors([]);
+      setNotificationMessage(flash.error);
+      setNotificationColor('red');
+      setShowNotification(true);
+    }
+  }, [flash?.success, flash?.error, serverErrors?.error]);
+
   // Reset file when dropdown selections change
   useEffect(() => {
     if (file) {
@@ -154,12 +191,8 @@ const IntractiveExamResultComponent = () => {
         setUploadProgress(Math.round((progress.loaded * 100) / progress.total));
       },
       onSuccess: () => {
-        // The redirect will happen automatically through Inertia
         setUploading(false);
-        setNotificationMessage('Exam results uploaded successfully!');
-        setNotificationColor('teal');
-        setShowNotification(true);
-        setTimeout(() => resetForm(), 2000);
+        // Notification + errors are driven by flash + server validation after redirect.
       },
       onError: (errors: any) => {
         const errorMessage = errors?.error || 'Error uploading exam results';
@@ -209,6 +242,24 @@ const IntractiveExamResultComponent = () => {
           >
             {notificationMessage}
           </Notification>
+        )}
+
+        {(flash?.info?.uploaded !== undefined || flash?.info?.failed !== undefined) && (
+          <Card mt="md" padding="sm" radius="md" withBorder>
+            <Group justify="space-between">
+              <Text size="sm">
+                Uploaded: <b>{flash?.info?.uploaded ?? 0}</b>
+              </Text>
+              <Text size="sm" c={flash?.info?.failed ? 'red' : undefined}>
+                Failed: <b>{flash?.info?.failed ?? 0}</b>
+              </Text>
+            </Group>
+            {(flash?.info?.failed_login_ids?.length ?? 0) > 0 && (
+              <Text size="sm" mt="xs">
+                Not uploaded Login IDs: <b>{flash?.info?.failed_login_ids?.join(', ')}</b>
+              </Text>
+            )}
+          </Card>
         )}
 
         {errors.length > 0 && (
@@ -290,4 +341,4 @@ const IntractiveExamResultComponent = () => {
   );
 };
 
-export default IntractiveExamResultComponent;
+export default UploadOfflineMarksComponent;

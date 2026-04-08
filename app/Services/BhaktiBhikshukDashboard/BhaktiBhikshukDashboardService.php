@@ -16,9 +16,14 @@ class BhaktiBhikshukDashboardService
         $partiallydevoteeCount = User::where('devotee_type', 'AD')
             ->leftJoin('professional_information', 'users.id', '=', 'professional_information.user_id')
             ->whereNull('professional_information.user_id') // This ensures the user has no professional info or mismatched user_id
-            ->count();
-        $approvedevoteeCount = ProfessionalInformation::where('status_code', 'A')->count();
-        $notapprovedevoteeCount = ProfessionalInformation::where('status_code', 'S')->count();
+            ->distinct('users.id')
+            ->count('users.id');
+        $approvedevoteeCount = ProfessionalInformation::where('status_code', 'A')
+            ->distinct('user_id')
+            ->count('user_id');
+        $notapprovedevoteeCount = ProfessionalInformation::where('status_code', 'S')
+            ->distinct('user_id')
+            ->count('user_id');
         $coordinatorCount = User::where('devotee_type', 'CA')->count();
 
         // Return all counts as an array

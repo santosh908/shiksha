@@ -13,6 +13,18 @@ interface ProfessionalInfoPropos {
 }
 
 export default function ProfessionalInfo({ masterData, handleBack, handleNext, containerStyle }: ProfessionalInfoPropos) {
+  const normalizeHearingLectureValue = (value: string | null | undefined): string => {
+    const raw = (value || '').toString().trim();
+    const map: Record<string, string> = {
+      less_than_half_hour: 'Less than half an hour',
+      between_30_minutes_and_60_minutes: 'Between 30 minutes and 60 minutes',
+      more_than_60_minutes: 'More than 60 minutes',
+      'Less than half an hour': 'Less than half an hour',
+      'Between 30 minutes and 60 minutes': 'Between 30 minutes and 60 minutes',
+      'More than 60 minutes': 'More than 60 minutes',
+    };
+    return map[raw] ?? raw;
+  };
   
   const [value, setValue] = useState('');
 
@@ -23,7 +35,7 @@ export default function ProfessionalInfo({ masterData, handleBack, handleNext, c
       ChantingStartDate: masterData.PersonalInfo?.when_are_you_chantin?.date || '',
       RegulativePrinciples: masterData.DevoteePrinciple.map((p: any) => p.id.toString()) || [],
       BooksRead: masterData.DevoteeBookRead.map((p: any) => p.id.toString()) || [],
-      SpendTimeHearingLecture: masterData.PersonalInfo.spend_everyday_hearing_lectures || '',
+      SpendTimeHearingLecture: normalizeHearingLectureValue(masterData.PersonalInfo?.spend_everyday_hearing_lectures || ''),
     },
   });
 
@@ -50,6 +62,10 @@ export default function ProfessionalInfo({ masterData, handleBack, handleNext, c
     if (masterData.PersonalInfo?.when_are_you_chantin) {
       form.setFieldValue('ChantingStartDate', new Date(masterData.PersonalInfo?.when_are_you_chantin));
     }
+    form.setFieldValue(
+      'SpendTimeHearingLecture',
+      normalizeHearingLectureValue(masterData.PersonalInfo?.spend_everyday_hearing_lectures || '')
+    );
   }, [masterData]);
 
   const handleCheckboxChange = (values: string[]) => {
@@ -199,11 +215,10 @@ export default function ProfessionalInfo({ masterData, handleBack, handleNext, c
             label="Time Spent Hearing Lectures"
             {...form.getInputProps('SpendTimeHearingLecture')}
             data={[
-              { value: 'less_than_half_hour', label: 'Less than half an hour' },
-              { value: 'between_30_minutes_and_60_minutes', label: 'Between 30 minutes and 60 minutes' },
-              { value: 'more_than_60_minutes', label: 'More than 60 minutes' },
+              { value: 'Less than half an hour', label: 'Less than half an hour' },
+              { value: 'Between 30 minutes and 60 minutes', label: 'Between 30 minutes and 60 minutes' },
+              { value: 'More than 60 minutes', label: 'More than 60 minutes' },
             ]}
-            clearable
             searchable
           />
         </Grid.Col>

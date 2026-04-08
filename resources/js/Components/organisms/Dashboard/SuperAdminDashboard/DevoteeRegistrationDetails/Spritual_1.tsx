@@ -1,5 +1,5 @@
 import { useForm } from '@mantine/form';
-import { Button, Checkbox, Grid, Group, NumberInput, Select, TextInput } from '@mantine/core';
+import { Button, Checkbox, Grid, Group, NumberInput, Select, TextInput, Notification } from '@mantine/core';
 import { router, usePage } from '@inertiajs/react';
 import { DateInput } from '@mantine/dates';
 import { IconArrowLeft, IconArrowRight, IconCalendar, IconListCheck, IconSend } from '@tabler/icons-react';
@@ -14,21 +14,48 @@ interface ProfessionalInfoPropos {
 
 export default function Spritual_1({ masterData, handleBack, handleNext, containerStyle }: ProfessionalInfoPropos) {
   const [value, setValue] = useState('');
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationColor, setNotificationColor] = useState<'teal' | 'red'>('teal');
+  const normalizeHearingLectureValue = (value: string | null | undefined): string => {
+    const raw = (value || '').toString().trim();
+    const map: Record<string, string> = {
+      less_than_half_hour: 'Less than half an hour',
+      between_30_minutes_and_60_minutes: 'Between 30 minutes and 60 minutes',
+      more_than_60_minutes: 'More than 60 minutes',
+      'Less than half an hour': 'Less than half an hour',
+      'Between 30 minutes and 60 minutes': 'Between 30 minutes and 60 minutes',
+      'More than 60 minutes': 'More than 60 minutes',
+    };
+    return map[raw] ?? raw;
+  };
 
   const form = useForm({
     initialValues: {
-      profileId: masterData.PersonalInfo.id || 0,
-      userId: masterData.User.id || 0,
+      profileId: masterData.PersonalInfo?.id || masterData.PersonalInfo?.ProfilePrID || 0,
+      userId: masterData.User?.id || masterData.PersonalInfo?.user_id || 0,
       NoOfChant: masterData.PersonalInfo?.how_many_rounds_you_chant || '',
       ChantingStartDate: masterData.PersonalInfo?.when_are_you_chantin?.date || '',
       RegulativePrinciples: masterData.DevoteePrinciple.map((p: any) => p.id.toString()) || [],
       BooksRead: masterData.DevoteeBookRead.map((p: any) => p.id.toString()) || [],
-      SpendTimeHearingLecture: masterData.PersonalInfo.spend_everyday_hearing_lectures || '',
+      SpendTimeHearingLecture: normalizeHearingLectureValue(masterData.PersonalInfo?.spend_everyday_hearing_lectures || ''),
     },
   });
 
   const handleSubmit = () => {
-    router.post('/Action/UpdateSpritualInfoOne', form.values);
+    router.post('/Action/UpdateSpritualInfoOne', form.values, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setNotificationMessage('Devotee spiritual information updated successfully.');
+        setNotificationColor('teal');
+        setShowNotification(true);
+      },
+      onError: () => {
+        setNotificationMessage('Update failed. Please check required fields and try again.');
+        setNotificationColor('red');
+        setShowNotification(true);
+      },
+    });
   };
 
   const today = new Date();
@@ -50,6 +77,10 @@ export default function Spritual_1({ masterData, handleBack, handleNext, contain
     if (masterData.PersonalInfo?.when_are_you_chantin) {
       form.setFieldValue('ChantingStartDate', new Date(masterData.PersonalInfo?.when_are_you_chantin));
     }
+    form.setFieldValue(
+      'SpendTimeHearingLecture',
+      normalizeHearingLectureValue(masterData.PersonalInfo?.spend_everyday_hearing_lectures || '')
+    );
   }, [masterData]);
 
   const handleCheckboxChange = (values: string[]) => {
@@ -71,6 +102,11 @@ export default function Spritual_1({ masterData, handleBack, handleNext, contain
 
   return (
     <>
+      {showNotification && (
+        <Notification color={notificationColor} mb="md" onClose={() => setShowNotification(false)}>
+          {notificationMessage}
+        </Notification>
+      )}
       <Grid py={10}>
         <Grid.Col
           span={{
@@ -206,7 +242,6 @@ export default function Spritual_1({ masterData, handleBack, handleNext, contain
               { value: 'Between 30 minutes and 60 minutes', label: 'Between 30 minutes and 60 minutes' },
               { value: 'More than 60 minutes', label: 'More than 60 minutes' },
             ]}
-            clearable
             searchable
           />
         </Grid.Col>
@@ -218,11 +253,7 @@ export default function Spritual_1({ masterData, handleBack, handleNext, contain
               <Button type="submit" color="yellow" onClick={() => router.visit(`/Action/devoteeList`)}>
                 <IconListCheck size={20} /> Back To DevoteeList
               </Button>
-            ) : (
-              <Button type="submit" color="blue" onClick={() => router.visit('/Action/partiallydevoteeList')}>
-                <IconListCheck size={20} /> Back to Partially Devotee List
-              </Button>
-            )}
+            ) : null}
             <Button type="button" color="gray" onClick={handleBack}>
               <IconArrowLeft size={20} /> Back
             </Button>

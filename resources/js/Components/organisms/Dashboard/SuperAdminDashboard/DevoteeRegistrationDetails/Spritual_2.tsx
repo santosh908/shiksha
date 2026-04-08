@@ -1,5 +1,5 @@
 import { useForm } from '@mantine/form';
-import { Button, Checkbox, Grid, Group, Radio, TextInput } from '@mantine/core';
+import { Button, Checkbox, Grid, Group, Notification, Radio, TextInput } from '@mantine/core';
 import { router, usePage } from '@inertiajs/react';
 import { IconArrowLeft, IconArrowRight, IconCalendar, IconListCheck, IconSend } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
@@ -12,10 +12,14 @@ interface HearingReadingProps {
 }
 
 export default function Spritual_2({ masterData, handleNext, handleBack, containerStyle }: HearingReadingProps) {
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
+  const [notificationColor, setNotificationColor] = useState<'teal' | 'red'>('teal');
+
   const form = useForm({
     initialValues: {
-      profileId: masterData.PersonalInfo.id || 0,
-      userId: masterData.User.id || 0,
+      profileId: masterData.PersonalInfo?.id || masterData.PersonalInfo?.ProfilePrID || 0,
+      userId: masterData.User?.id || masterData.PersonalInfo?.user_id || 0,
       MemorisedPrayers: masterData.DevoteeMemoriesPrayer.map((p: any) => p.id.toString()) || [],
       Seminar: masterData.DevoteeAttendedSeminar.map((p: any) => p.id.toString()) || [],
       ShastriDegree: masterData.PersonalInfo?.bakti_shastri_degree || '',
@@ -23,7 +27,19 @@ export default function Spritual_2({ masterData, handleNext, handleBack, contain
   });
 
   const handleSubmit = () => {
-    router.post('/Action/UpdateSpritualInfoTwo', form.values);
+    router.post('/Action/UpdateSpritualInfoTwo', form.values, {
+      preserveScroll: true,
+      onSuccess: () => {
+        setNotificationMessage('Bakti Shastri Degree and spiritual info updated successfully.');
+        setNotificationColor('teal');
+        setShowNotification(true);
+      },
+      onError: () => {
+        setNotificationMessage('Update failed. Please check required fields and try again.');
+        setNotificationColor('red');
+        setShowNotification(true);
+      },
+    });
   };
 
   const { errors } = usePage().props;
@@ -58,6 +74,11 @@ export default function Spritual_2({ masterData, handleNext, handleBack, contain
 
   return (
     <>
+      {showNotification && (
+        <Notification color={notificationColor} mb="md" onClose={() => setShowNotification(false)}>
+          {notificationMessage}
+        </Notification>
+      )}
       <Grid py={10}>
         <Grid.Col span={{ base: 12, md: 12, lg: 12 }}>
           <label style={containerStyle}>I have memorised following prayers - मैंने निम्नलिखित प्रार्थनाएँ याद कर ली हैं?</label>
@@ -131,11 +152,7 @@ export default function Spritual_2({ masterData, handleNext, handleBack, contain
               <Button type="submit" color="yellow" onClick={() => router.visit(`/SuperAdmin/devoteeList`)}>
                 <IconListCheck size={20} /> Back To DevoteeList
               </Button>
-            ) : (
-              <Button type="submit" color="blue" onClick={() => router.visit('/SuperAdmin/partiallydevoteeList')}>
-                <IconListCheck size={20} /> Back to Partially Devotee List
-              </Button>
-            )}
+            ) : null}
             <Button type="button" color="gray" onClick={handleBack}>
               <IconArrowLeft size={20} /> Back
             </Button>

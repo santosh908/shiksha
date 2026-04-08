@@ -101,7 +101,7 @@ class ResultListController extends Controller
         $levelList = $this->resultManagementApplicationService->levelList();
 
         //dd($examList, $levelList);
-        return Inertia::render('SuperAdmin/intractiveexamresult', [
+        return Inertia::render('SuperAdmin/uploadofflinemarks', [
             'examList' => $examList,
             'levelList' => $levelList
         ]);
@@ -127,8 +127,25 @@ class ResultListController extends Controller
                 $selectedExamId
             );
 
-            return redirect()->route('Action.uploadofflinemarks')
-                ->with('success', 'Exam results uploaded successfully! ' . ($result['message'] ?? ''));
+            $redirect = redirect()->route('Action.uploadofflinemarks');
+
+            if (!empty($result['uploaded_count'])) {
+                $redirect = $redirect->with('success', $result['message'] ?? 'Exam results uploaded successfully.');
+            } else {
+                $redirect = $redirect->with('error', 'No rows were uploaded. Please fix the validation issues and try again.');
+            }
+
+            if (!empty($result['failed_rows'])) {
+                $redirect = $redirect->withErrors(['error' => $result['failed_rows']]);
+            }
+
+            $redirect = $redirect->with('info', [
+                'uploaded' => (int) ($result['uploaded_count'] ?? 0),
+                'failed' => (int) ($result['failed_count'] ?? 0),
+                'failed_login_ids' => $result['failed_login_ids'] ?? [],
+            ]);
+
+            return $redirect;
         } catch (\Exception $e) {
             return redirect()->back()
                 ->withErrors(['error' => explode("\n", $e->getMessage())]) // Store errors as an array

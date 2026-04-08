@@ -199,10 +199,6 @@ export default function Spritual_3({ masterData, handleNext, handleBack, contain
               <IconListCheck size={20} /> Back To DevoteeList
             </Button>
 
-            <Button type="submit" color="blue" onClick={() => router.visit('/Action/partiallydevoteeList')}>
-              <IconListCheck size={20} /> Back to Partially Devotee List
-            </Button>
-
             <Button type="button" color="gray" onClick={handleBack}>
               <IconArrowLeft size={20} /> Back
             </Button>

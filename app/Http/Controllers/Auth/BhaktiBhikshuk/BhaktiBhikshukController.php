@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use App\Models\BhaktiBhekshuk;
 
 class BhaktiBhikshukController extends Controller
 {
@@ -43,7 +45,16 @@ class BhaktiBhikshukController extends Controller
 
     public function bhaktibhikshukStore(BhaktiVrikshukRequest $request): RedirectResponse
     {
-        $data = $request->validated();
+        $user = Auth::user();
+        if ($user && $user->devotee_type === "AL") {
+            $leader = AsheryLeader::where('user_id', $user->id)->first();
+            if (! $leader) {
+                return redirect()->back()->with('error', 'Ashray Leader mapping not found.');
+            }
+            // Force AL to create only under own leader code.
+            $request->merge(['code' => $leader->code]);
+        }
+
         $bhaktibhikshukinfo = $this->adminCatalogApplicationService->createBhaktiBhikshuk($request);
         return redirect()->route('Action.BhaktiBhikshukStore')
             ->with('success', 'Bhakti Bhikshuk Details Saved Successfully!')
@@ -52,6 +63,31 @@ class BhaktiBhikshukController extends Controller
 
     public function update(Request $request)
     {
+        $authUser = Auth::user();
+        $bhaktiVrikshuk = BhaktiBhekshuk::where('user_id', $request->id)->first();
+        if (! $bhaktiVrikshuk) {
+            return redirect()->back()->with('error', 'Bhakti Vrikshuk not found.');
+        }
+
+        if ($authUser && $authUser->devotee_type === "AL") {
+            $leader = AsheryLeader::where('user_id', $authUser->id)->first();
+            if (! $leader) {
+                return redirect()->back()->with('error', 'Ashray Leader mapping not found.');
+            }
+
+            // Block AL from updating records outside their own assignment.
+            if ((string) $bhaktiVrikshuk->ashray_leader_code !== (string) $leader->code) {
+                if (Schema::hasColumn('bhakti_bhekshuk', 'rejected_by')) {
+                    $bhaktiVrikshuk->rejected_by = $authUser->id;
+                    $bhaktiVrikshuk->save();
+                }
+                return redirect()->back()->with('error', 'Update rejected: this record is not assigned to you.');
+            }
+
+            // Prevent AL from reassigning to another leader by payload tampering.
+            $request->merge(['code' => $leader->code, 'updated_by_actor_id' => $authUser->id]);
+        }
+
         $user = User::findOrFail($request->id);
         // Dynamic validation rules
         $rules = [
@@ -100,6 +136,27 @@ class BhaktiBhikshukController extends Controller
 
     public function destroy($id)
     {
+        $authUser = Auth::user();
+        $bhaktiVrikshuk = BhaktiBhekshuk::where('user_id', $id)->first();
+        if (! $bhaktiVrikshuk) {
+            return redirect()->back()->with('error', 'Bhakti Vrikshuk not found or could not be deleted');
+        }
+
+        if ($authUser && $authUser->devotee_type === "AL") {
+            $leader = AsheryLeader::where('user_id', $authUser->id)->first();
+            if (! $leader) {
+                return redirect()->back()->with('error', 'Ashray Leader mapping not found.');
+            }
+
+            if ((string) $bhaktiVrikshuk->ashray_leader_code !== (string) $leader->code) {
+                if (Schema::hasColumn('bhakti_bhekshuk', 'rejected_by')) {
+                    $bhaktiVrikshuk->rejected_by = $authUser->id;
+                    $bhaktiVrikshuk->save();
+                }
+                return redirect()->back()->with('error', 'Delete rejected: this record is not assigned to you.');
+            }
+        }
+
         $bhaktiVrikshuk = $this->adminCatalogApplicationService->deleteBhaktiBhikshuk($id);
         if ($bhaktiVrikshuk) {
             return redirect()->back()->with('success', 'Bhakti Vrikshuk deleted successfully');

@@ -16,7 +16,8 @@ export default function SessionResultListComponent() {
 
   const [isLoading, setIsLoading] = useState(false);
   const validdevoteeResults = Array.isArray(devoteeResults) ? devoteeResults : [];
-  const [selectedSession, setSelectedSession] = useState<string | null>(currentSession);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [hasUserSelectedSession, setHasUserSelectedSession] = useState(false);
   const { name: UserName, login_id: LoginID,roles:roleName } = useUserStore();
   const sessionOptions = examSessions.map((session) => ({
     value: session.id.toString(),
@@ -26,14 +27,15 @@ export default function SessionResultListComponent() {
   const isMobile = useMediaQuery('(max-width: 768px)');
   
   const filteredResults = useMemo(() => {
-    if (!selectedSession) return [];
+    if (!hasUserSelectedSession || !selectedSession) return [];
     return validdevoteeResults;
-  }, [validdevoteeResults, selectedSession]);
+  }, [validdevoteeResults, selectedSession, hasUserSelectedSession]);
 
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleSessionChange = (value: string | null) => {
     setIsLoading(true);
+    setHasUserSelectedSession(true);
     setSelectedSession(value);
 
     if (value) {
@@ -175,19 +177,39 @@ export default function SessionResultListComponent() {
         accessorKey: `total_obtain_${level}`,
         header: `${levelName} - Total Obtain`,
       });
-      dynamicColumns.push({
-        accessorKey: `is_qualified_${level}`,
-        header: `${levelName} - Qualified`,
-        Cell: ({ cell }) => {
-          // Get the value and ensure it's treated as a number
-          const value = Number(cell.getValue());
-          return (
-            <Text className="text-center font-bold">
-              {value === 1 ? <span style={{ color: 'green' }}>✓</span> : <span style={{ color: 'red' }}>✗</span>}
-            </Text>
-          );
-        },
-      });
+
+      // Show Assignment+Written total right after GPA total obtain.
+      if (level === 7) {
+        dynamicColumns.push({
+          accessorKey: 'total_assignment_written',
+          header: 'Total Assisgmne+Written',
+          accessorFn: (row: any) => {
+            const assignmentObtain = Number(row.total_obtain_6);
+            const writtenObtain = Number(row.total_obtain_7);
+            const safeAssignment = Number.isFinite(assignmentObtain) ? assignmentObtain : 0;
+            const safeWritten = Number.isFinite(writtenObtain) ? writtenObtain : 0;
+            const total = safeAssignment + safeWritten;
+            return total > 0 ? total : 'NA';
+          },
+        });
+      }
+
+      // Remove GPAAS (level 6) qualified column as requested.
+      if (level !== 6) {
+        dynamicColumns.push({
+          accessorKey: `is_qualified_${level}`,
+          header: `${levelName} - Qualified`,
+          Cell: ({ cell }) => {
+            // Get the value and ensure it's treated as a number
+            const value = Number(cell.getValue());
+            return (
+              <Text className="text-center font-bold">
+                {value === 1 ? <span style={{ color: 'green' }}>✓</span> : <span style={{ color: 'red' }}>✗</span>}
+              </Text>
+            );
+          },
+        });
+      }
     });
 
     return dynamicColumns;
@@ -231,7 +253,7 @@ export default function SessionResultListComponent() {
                   <Text mt={10}>Loading results...</Text>
                 </Box>
               ) : (
-                selectedSession && (
+                hasUserSelectedSession && selectedSession && (
                   <Box>
                     <DataTable
                     //@ts-ignore
