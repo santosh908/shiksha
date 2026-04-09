@@ -48,6 +48,9 @@ class DevoteeResultListServices
         $asheryLeader = DB::table('ashery_leader')
             ->where('user_id', $user->id)
             ->first();
+        if (!$asheryLeader) {
+            return [];
+        }
         $completedLevels = DB::table('shiksah_lavel_completed')
             ->join('shiksha_levels', 'shiksha_levels.id', '=', 'shiksah_lavel_completed.shiksha_level')
             ->join('ashery_leader', 'ashery_leader.code', '=', 'shiksah_lavel_completed.ashray_leader_code')
@@ -74,6 +77,9 @@ class DevoteeResultListServices
         $bhaktibhikshuk = DB::table('bhakti_bhekshuk')
             ->where('user_id', $user->id)
             ->first();
+        if (!$bhaktibhikshuk) {
+            return [];
+        }
         $completedLevels = DB::table('shiksah_lavel_completed')
             ->join('shiksha_levels', 'shiksha_levels.id', '=', 'shiksah_lavel_completed.shiksha_level')
             ->join('ashery_leader', 'ashery_leader.code', '=', 'shiksah_lavel_completed.ashray_leader_code')

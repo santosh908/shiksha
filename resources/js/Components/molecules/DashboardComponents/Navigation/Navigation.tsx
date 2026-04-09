@@ -41,6 +41,7 @@ interface NavLink {
   link?: string;
   links?: NavLink[];
   requiredPermission?: string;
+  requiredAnyPermissions?: string[];
   dropdownStyle?: React.CSSProperties;
 }
 
@@ -51,9 +52,16 @@ interface NavSection {
 
 const Navigation = ({ onClose }: NavigationProps) => {
   const tablet_match = useMediaQuery('(max-width: 768px)');
-  const { name: userName, initiated_name:initiated_name,account_approved: AccountApproved, roles: RoleName, permissions: permissionName } = useUserStore();
+  const { name: userName, initiated_name:initiated_name, account_approved: AccountApproved, roles: RoleName, permissions: permissionName, devotee_type: devoteeType } = useUserStore();
   const theme = useMantineTheme();
   const [mockdata, setMockData] = useState<NavSection[]>([]);
+  const roleList = Array.isArray(RoleName) ? RoleName : (RoleName ? [RoleName] : []);
+  const roleSlug =
+    devoteeType === 'BB'
+      ? 'BhaktiBhekshuk'
+      : devoteeType === 'AD'
+      ? 'Devotee'
+      : roleList[0] || 'Devotee';
   const hasPermission = (requiredPermission?: string) => {
     if (!requiredPermission) return true;
     const userPermissions = Array.isArray(permissionName) ? permissionName : [permissionName];
@@ -61,9 +69,14 @@ const Navigation = ({ onClose }: NavigationProps) => {
       return true;
     }
     // Convert to lowercase for comparison
-    const normalizedPermissions = userPermissions.map((p) => (p || '').toLowerCase());
-    const required = requiredPermission.toLowerCase();
+    const normalizedPermissions = userPermissions.map((p) => (p || '').toString().trim().toLowerCase());
+    const required = requiredPermission.toString().trim().toLowerCase();
     return normalizedPermissions.includes(required);
+  };
+
+  const hasAnyPermission = (requiredPermissions?: string[]) => {
+    if (!requiredPermissions || requiredPermissions.length === 0) return true;
+    return requiredPermissions.some((permission) => hasPermission(permission));
   };
   const setUserMultiValue = useUserStore((state) => state.setUserMultiValue);
   const { props } = usePage();
@@ -102,7 +115,7 @@ const Navigation = ({ onClose }: NavigationProps) => {
                 {
                   label: 'Profile',
                   icon: IconUser,
-                  link: '/Devotee/Profile',
+                  link: devoteeType === 'BB' ? '/BhaktiBhekshuk/Profile' : '/Devotee/Profile',
                 },
                 {
                   label: 'Shiksha Level Completed',
@@ -308,12 +321,15 @@ const Navigation = ({ onClose }: NavigationProps) => {
       .map((section) => ({
         ...section,
         links: section.links?.filter((link) => {
+          const hasLinkPermission =
+            hasPermission(link.requiredPermission) && hasAnyPermission(link.requiredAnyPermissions);
+
           if (link.links) {
             const filteredSubLinks = link.links.filter((subLink) => hasPermission(subLink.requiredPermission));
             link.links = filteredSubLinks;
-            return filteredSubLinks.length > 0 || hasPermission(link.requiredPermission);
+            return filteredSubLinks.length > 0 || hasLinkPermission;
           }
-          return hasPermission(link.requiredPermission);
+          return hasLinkPermission;
         }),
       }))
       .filter((section) => section.links && section.links.length > 0);
@@ -341,17 +357,17 @@ const Navigation = ({ onClose }: NavigationProps) => {
   return (
     <nav className={classes.navbar}>
       <div className={classes.header}>
-        <a href={`/${RoleName}/dashboard`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <a href={`/${roleSlug}/dashboard`} style={{ textDecoration: 'none', color: 'inherit' }}>
           <Flex justify="space-between" align="center" gap="sm">
             <Flex gap="md" align="center" style={{ background: rgba(theme.colors.dark[9], 0.3) }} className="w-full shadow-md rounded-lg p-3 px-5">
               <Avatar size="md" variant="white" />
               <Flex direction="column">
-                <Box>{RoleName[0] === "BhaktiVriksha" || RoleName[1] === "BhaktiVriksha" || RoleName[0] === "AsheryLeader" || RoleName[1] === "AsheryLeader" 
+                <Box>{roleList[0] === "BhaktiVriksha" || roleList[1] === "BhaktiVriksha" || roleList[0] === "AsheryLeader" || roleList[1] === "AsheryLeader" 
                     ? <p>{initiated_name}</p> 
                     : <p>{userName}</p>}
                   </Box>
                 <Badge  color="black">
-                  {RoleName[1]===undefined ? RoleName[0] :  RoleName[1] + ' Leader' }
+                  {roleList[1]===undefined ? roleList[0] :  roleList[1] + ' Leader' }
                 </Badge>
               </Flex>
             </Flex>

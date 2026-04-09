@@ -49,7 +49,8 @@ class SessionResultServices
             ->join('shiksha_levels', 'shiksha_levels.id', '=', 'shiksah_lavel_completed.shiksha_level')
             ->join('ashery_leader', 'ashery_leader.code', '=', 'shiksah_lavel_completed.ashray_leader_code')
             ->join('users', 'users.login_id', '=', 'shiksah_lavel_completed.login_id')
-            ->join('examinations', 'examinations.exam_session', '=', 'shiksah_lavel_completed.exam_id')
+            ->join('examinations', 'examinations.id', '=', 'shiksah_lavel_completed.exam_id')
+            ->join('exam_session', 'exam_session.id', '=', 'examinations.exam_session')
             ->select([
                 'shiksah_lavel_completed.*',
                 'shiksha_levels.exam_level',
@@ -58,12 +59,13 @@ class SessionResultServices
                 'users.Initiated_name',
                 'users.email',
                 'users.contact_number',
+                'examinations.exam_session'
             ])
             ->where('ashery_leader.code', '=', $asheryLeader->code);
 
         // Filter by exam session ID
         if ($session) {
-            $query->where('shiksah_lavel_completed.exam_id', $session);
+            $query->where('exam_session.id', $session);
         }
 
         return $query->get()->toArray();
@@ -90,7 +92,9 @@ class SessionResultServices
             ->join('shiksha_levels', 'shiksha_levels.id', '=', 'shiksah_lavel_completed.shiksha_level')
             ->join('ashery_leader', 'ashery_leader.code', '=', 'shiksah_lavel_completed.ashray_leader_code')
             ->join('users', 'users.login_id', '=', 'shiksah_lavel_completed.login_id')
-            ->join('examinations', 'examinations.exam_session', '=', 'shiksah_lavel_completed.exam_id')
+            ->join('examinations', 'examinations.id', '=', 'shiksah_lavel_completed.exam_id')
+            ->join('exam_session', 'exam_session.id', '=', 'examinations.exam_session')
+            ->join('user_have_ashray_leader', 'user_have_ashray_leader.user_id', '=', 'users.id')
             ->select([
                 'shiksah_lavel_completed.*',
                 'shiksha_levels.exam_level',
@@ -99,12 +103,13 @@ class SessionResultServices
                 'users.Initiated_name',
                 'users.email',
                 'users.contact_number',
+                'examinations.exam_session'
             ])
-            ->where('bhakti_bhekshuk.user_id', '=', $bhaktibhikshuk->user_id);
+            ->where('user_have_ashray_leader.Bhakti_Bhekshuk', '=', $bhaktibhikshuk->id);
 
         // Filter by exam session ID
         if ($session) {
-            $query->where('shiksah_lavel_completed.exam_id', $session);
+            $query->where('exam_session.id', $session);
         }
 
         return $query->get()->toArray();

@@ -804,10 +804,13 @@ class PostRegistraionService
         $offset = ($page - 1) * $perPage;
 
         $query = $this->buildDevoteeSuperAdminQuery()->orderBy('user_id', 'desc');
+        $total = $this->buildDevoteeSuperAdminCountQuery()
+            ->distinct('u.login_id')
+            ->count('u.login_id');
+        $lastPage = max((int) ceil($total / $perPage), 1);
 
-        // Avoid paginate() because it runs an expensive COUNT(*) over the view.
         $items = (clone $query)->offset($offset)->limit($perPage)->get();
-        $hasMore = (clone $query)->offset($offset + $perPage)->limit(1)->exists();
+        $hasMore = $page < $lastPage;
 
         $mapped = $items->map(fn ($item) => $this->transformDevoteeListRow($item))->values()->toArray();
 
@@ -819,8 +822,8 @@ class PostRegistraionService
                 'data' => $mapped,
                 'current_page' => $page,
                 'per_page' => $perPage,
-                'total' => null,
-                'last_page' => null,
+                'total' => $total,
+                'last_page' => $lastPage,
                 'from' => $from,
                 'to' => $to,
                 'has_more_pages' => $hasMore,
@@ -925,7 +928,33 @@ class PostRegistraionService
                 'pi.created_at',
             ]);
 
-        // ---------------- Role Based Filters ----------------
+        $this->applyDevoteeSuperAdminFilters($query, $user);
+
+        return $query;
+    }
+
+    private function buildDevoteeSuperAdminCountQuery()
+    {
+        $user = Auth::user();
+        $query = DB::table('users as u')
+            ->join('professional_information as pi', 'pi.user_id', '=', 'u.id')
+            ->leftJoin('user_have_ashray_leader as ual', function ($join) {
+                $join->on('ual.user_id', '=', 'u.id')
+                    ->where('ual.is_active', '=', 'Y');
+            })
+            ->leftJoin('ashery_leader as al', 'al.code', '=', 'ual.ashray_leader_code')
+            ->leftJoin('users as al_user', 'al_user.id', '=', 'al.user_id')
+            ->leftJoin('bhakti_bhekshuk as bb', 'bb.id', '=', 'ual.Bhakti_Bhekshuk')
+            ->leftJoin('users as bb_user', 'bb_user.id', '=', 'bb.user_id')
+            ->where('u.devotee_type', '=', 'AD');
+
+        $this->applyDevoteeSuperAdminFilters($query, $user);
+
+        return $query;
+    }
+
+    private function applyDevoteeSuperAdminFilters($query, $user): void
+    {
         if ($user && $user->hasRole('AsheryLeader')) {
             $asheryLeader = AsheryLeader::where('user_id', $user->id)->first();
             if ($asheryLeader) {
@@ -979,8 +1008,6 @@ class PostRegistraionService
                     ->orWhere('bb_user.Initiated_name', 'like', $like);
             });
         }
-
-        return $query;
     }
 
     /**

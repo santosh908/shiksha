@@ -27,6 +27,7 @@ import {
   IconMoonStars,
   IconPower,
   IconSearch,
+  IconSwitchHorizontal,
   IconSunHigh,
 } from '@tabler/icons-react';
 import { upperFirst, useMediaQuery } from '@mantine/hooks';
@@ -34,6 +35,7 @@ import { showNotification } from '@mantine/notifications';
 import LogoutButton from '@/Components/atom/Button/LogoutButton';
 import { usePage } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
+import useUserStore from '@/Store/User.store';
 import { Message } from './Message.types';
 // import LogoutButton from '@/Components/atom/Button/LogoutButton';
 //
@@ -71,6 +73,17 @@ const HeaderNav = (props: HeaderNavProps) => {
   const mobile_match = useMediaQuery('(max-width: 425px)');
   const pageMessages = usePage<{ messages?: Message[] }>().props.messages || [];
   const allMessages = [...(props.messages || []), ...pageMessages];
+  const { roles } = useUserStore();
+  const roleList = Array.isArray(roles) ? roles : roles ? [roles] : [];
+
+  const roleToDashboardPath: Record<string, string> = {
+    Devotee: '/Devotee/dashboard',
+    BhaktiVriksha: '/BhaktiBhekshuk/dashboard',
+    BhaktiBhekshuk: '/BhaktiBhekshuk/dashboard',
+    AsheryLeader: '/AsheryLeader/dashboard',
+    SuperAdmin: '/SuperAdmin/dashboard',
+    CoOrdinator: '/CoOrdinator/dashboard',
+  };
 
   const messageItems = allMessages.map((m) => (
     <Menu.Item
@@ -195,6 +208,28 @@ const HeaderNav = (props: HeaderNavProps) => {
             <LogoutButton />
           </Box>
         </Tooltip>
+
+        {roleList.length > 1 && (
+          <Menu shadow="lg" width={220}>
+            <Menu.Target>
+              <Tooltip label="Switch role dashboard">
+                <ActionIcon variant="light">
+                  <IconSwitchHorizontal size={ICON_SIZE} />
+                </ActionIcon>
+              </Tooltip>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Label tt="uppercase" ta="center" fw={600}>
+                Switch Role
+              </Menu.Label>
+              {roleList.map((roleName) => (
+                <Menu.Item key={roleName} component={Link} href={roleToDashboardPath[roleName] || '/Devotee/dashboard'}>
+                  {roleName}
+                </Menu.Item>
+              ))}
+            </Menu.Dropdown>
+          </Menu>
+        )}
 
         <Menu shadow="lg" width={200}>
           <Menu.Target>

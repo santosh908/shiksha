@@ -19,6 +19,7 @@ const formatDate = (dateString: any) => {
 };
 
 export default function Devotee_PersonalInfo({ masterData, handleNext }: PersonalInfoProps) {
+  const { isSelfProfile } = usePage<{ isSelfProfile?: boolean }>().props;
   const form = useForm({
     initialValues: {
       profileId: masterData.PersonalInfo?.id || 0,
@@ -55,7 +56,7 @@ export default function Devotee_PersonalInfo({ masterData, handleNext }: Persona
   }, [errors]);
 
   const handleSubmit = () => {
-    router.post('/Action/UpdatePersonalInformation', form.values);
+    router.post(isSelfProfile ? '/Devotee/UpdatePersonalInformation' : '/Action/UpdatePersonalInformation', form.values);
   };
 
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -137,13 +138,14 @@ export default function Devotee_PersonalInfo({ masterData, handleNext }: Persona
           <TextInput label="Initiated Name (दीक्षित नाम)" {...form.getInputProps('Initiated_name')} value={form.values.Initiated_name} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <TextInput label="Email Address (ईमेल आईडी)" {...form.getInputProps('email')} value={form.values.email} />
+          <TextInput label="Email Address (ईमेल आईडी)" {...form.getInputProps('email')} value={form.values.email} disabled={!!isSelfProfile} />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 3, lg: 3 }}>
           <TextInput
             label="Mobile Number (मोबाइल नंबर)"
             {...form.getInputProps('contact_number')}
             value={form.values.contact_number}
+            disabled={!!isSelfProfile}
           />
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 3, lg: 3 }}>

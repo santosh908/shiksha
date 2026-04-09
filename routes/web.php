@@ -73,7 +73,7 @@ Route::group(['middleware' => ['role:AsheryLeader'], 'prefix' => 'AsheryLeader']
     require __DIR__ . '/ashrayleader.php';
 });
 
-Route::group(['middleware' => ['role:BhaktiBhekshuk'], 'prefix' => 'BhaktiBhekshuk'], function () {
+Route::group(['middleware' => ['role:BhaktiVriksha|BhaktiBhekshuk'], 'prefix' => 'BhaktiBhekshuk'], function () {
     require __DIR__ . '/bhaktiBhekshuk.php';
 });
 

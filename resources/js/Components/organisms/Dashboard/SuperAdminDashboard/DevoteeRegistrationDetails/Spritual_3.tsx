@@ -15,6 +15,7 @@ interface SeminarPropos {
 const today = new Date();
 
 export default function Spritual_3({ masterData, handleNext, handleBack, containerStyle }: SeminarPropos) {
+  const { isSelfProfile, user } = usePage<{ isSelfProfile?: boolean; user?: { devotee_type?: string } }>().props;
   const form = useForm({
     initialValues: {
       profileId: masterData.PersonalInfo.id || 0,
@@ -28,6 +29,15 @@ export default function Spritual_3({ masterData, handleNext, handleBack, contain
     },
   });
   const handleSubmit = () => {
+    if (isSelfProfile) {
+      const selfProfileRoute =
+        user?.devotee_type === 'BB'
+          ? '/BhaktiBhekshuk/UpdateSpritualInfoThree'
+          : '/Devotee/UpdateSpritualInfoThree';
+      router.post(selfProfileRoute, form.values);
+      return;
+    }
+
     router.post('/Action/UpdateSpritualInfoThree', form.values);
   };
 
@@ -73,8 +83,11 @@ export default function Spritual_3({ masterData, handleNext, handleBack, contain
             py={5}
             {...form.getInputProps('ashray_leader_code')}
             value={selectedLeader?.toString()}
+            readOnly={!!isSelfProfile}
             onChange={(value) => {
-              handleLeaderChange(value);
+              if (!isSelfProfile) {
+                handleLeaderChange(value);
+              }
             }}
             error={errors.ashray_leader_code}
           >
@@ -93,6 +106,7 @@ export default function Spritual_3({ masterData, handleNext, handleBack, contain
                 >
                   <Radio
                     value={leader.code.toString()}
+                              disabled={!!isSelfProfile}
                     label={
                       <Text fw={500} size="sm">
                        Ashray Leader : {leader?.user?.initiated_name || leader.ashery_leader_name}
@@ -109,6 +123,9 @@ export default function Spritual_3({ masterData, handleNext, handleBack, contain
           <Radio.Group
             value={selectedBhakti}
             onChange={(val) => {
+               if (isSelfProfile) {
+                  return;
+               }
                // Find the leader for this bhakti bhikshuk
                let foundLeaderCode = null;
                for (const leader of masterData.AshreyLeader) {
@@ -146,6 +163,7 @@ export default function Spritual_3({ masterData, handleNext, handleBack, contain
                          >
                             <Radio
                               value={bhakti.BhaktiBhikshukId.toString()}
+                              disabled={!!isSelfProfile}
                               label={
                                 <Text fw={500} size="sm">
                                 Bhakti Vriksha Leader : {
@@ -195,9 +213,11 @@ export default function Spritual_3({ masterData, handleNext, handleBack, contain
       <Grid>
         <Grid.Col span={12}>
           <Group justify="center" mt="md">
-            <Button type="submit" color="yellow" onClick={() => router.visit(`/Action/devoteeList`)}>
-              <IconListCheck size={20} /> Back To DevoteeList
-            </Button>
+            {!isSelfProfile && (
+              <Button type="submit" color="yellow" onClick={() => router.visit(`/Action/devoteeList`)}>
+                <IconListCheck size={20} /> Back To DevoteeList
+              </Button>
+            )}
 
             <Button type="button" color="gray" onClick={handleBack}>
               <IconArrowLeft size={20} /> Back

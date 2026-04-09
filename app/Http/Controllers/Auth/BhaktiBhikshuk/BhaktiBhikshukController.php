@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth\BhaktiBhikshuk;
 use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use App\Models\AsheryLeader;
-use App\Services\AdminCatalogApplicationService;
+use App\Services\BhaktiBhikshukApplicationService;
 use App\Http\Requests\BhaktiVrikshukRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -13,22 +13,33 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use App\Models\BhaktiBhekshuk;
+use App\Services\BhaktiBhikshukDashboard\BhaktiBhikshukDashboardService;
 
 class BhaktiBhikshukController extends Controller
 {
     public function __construct(
-        private readonly AdminCatalogApplicationService $adminCatalogApplicationService
+        private readonly BhaktiBhikshukApplicationService $bhaktiBhikshukApplicationService,
+        private readonly BhaktiBhikshukDashboardService $bhaktiBhikshukDashboardService
     ) {
     }
 
     public function bhaktibhikshukdashboard()
     {
-        return Inertia::render('BhaktiBhekshuk/dashboard');
+        $user = Auth::user();
+        $counts = $this->bhaktiBhikshukDashboardService->getScopedCountsByUserId((int) ($user->id ?? 0));
+
+        return Inertia::render('BhaktiBhekshuk/dashboard', [
+            'userName' => $user->name ?? 'BhaktiBhikshuk',
+            'assignedDevoteeCount' => $counts['assignedDevoteeCount'] ?? 0,
+            'approvedCount' => $counts['approvedCount'] ?? 0,
+            'rejectedCount' => $counts['rejectedCount'] ?? 0,
+            'pendingCount' => $counts['pendingCount'] ?? 0,
+        ]);
     }
 
     public function bhaktibhikshuk()
     {
-        $list = $this->adminCatalogApplicationService->listBhaktiBhikshuks();
+        $list = $this->bhaktiBhikshukApplicationService->list();
         $user = Auth::user();
         if($user->devotee_type=="AL")
         {
@@ -55,7 +66,7 @@ class BhaktiBhikshukController extends Controller
             $request->merge(['code' => $leader->code]);
         }
 
-        $bhaktibhikshukinfo = $this->adminCatalogApplicationService->createBhaktiBhikshuk($request);
+        $bhaktibhikshukinfo = $this->bhaktiBhikshukApplicationService->create($request);
         return redirect()->route('Action.BhaktiBhikshukStore')
             ->with('success', 'Bhakti Bhikshuk Details Saved Successfully!')
             ->with('savedData', $bhaktibhikshukinfo);
@@ -128,7 +139,7 @@ class BhaktiBhikshukController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $bhaktibhikshukinfo = $this->adminCatalogApplicationService->updateBhaktiBhikshuk($request);
+        $bhaktibhikshukinfo = $this->bhaktiBhikshukApplicationService->update($request);
         return redirect()->route('Action.BhaktiBhikshukStore')
             ->with('success', 'Bhakti Bhikshuk Details Updated Successfully!')
             ->with('savedData', $bhaktibhikshukinfo);
@@ -157,7 +168,7 @@ class BhaktiBhikshukController extends Controller
             }
         }
 
-        $bhaktiVrikshuk = $this->adminCatalogApplicationService->deleteBhaktiBhikshuk($id);
+        $bhaktiVrikshuk = $this->bhaktiBhikshukApplicationService->delete($id);
         if ($bhaktiVrikshuk) {
             return redirect()->back()->with('success', 'Bhakti Vrikshuk deleted successfully');
         } else {

@@ -12,6 +12,7 @@ interface HearingReadingProps {
 }
 
 export default function Spritual_2({ masterData, handleNext, handleBack, containerStyle }: HearingReadingProps) {
+  const { isSelfProfile } = usePage<{ isSelfProfile?: boolean }>().props;
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [notificationColor, setNotificationColor] = useState<'teal' | 'red'>('teal');
@@ -27,7 +28,7 @@ export default function Spritual_2({ masterData, handleNext, handleBack, contain
   });
 
   const handleSubmit = () => {
-    router.post('/Action/UpdateSpritualInfoTwo', form.values, {
+    router.post(isSelfProfile ? '/Devotee/UpdateSpritualInfoTwo' : '/Action/UpdateSpritualInfoTwo', form.values, {
       preserveScroll: true,
       onSuccess: () => {
         setNotificationMessage('Bakti Shastri Degree and spiritual info updated successfully.');
@@ -148,7 +149,7 @@ export default function Spritual_2({ masterData, handleNext, handleBack, contain
       <Grid>
         <Grid.Col span={12}>
           <Group justify="center" mt="md">
-            {masterData?.PersonalInfo?.status_code === 'S' ? (
+            {!isSelfProfile && masterData?.PersonalInfo?.status_code === 'S' ? (
               <Button type="submit" color="yellow" onClick={() => router.visit(`/SuperAdmin/devoteeList`)}>
                 <IconListCheck size={20} /> Back To DevoteeList
               </Button>

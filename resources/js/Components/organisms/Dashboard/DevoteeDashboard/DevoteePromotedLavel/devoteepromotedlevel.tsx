@@ -22,8 +22,16 @@ function DevoteePromotedLevelComponent() {
     return acc;
   }, {} as Record<number, string>);
 
-  //@ts-ignore
-  const completedLevels = shikshaLavelArray.filter(item => item?.is_promoted_by_ashray_leader !== "1").map(item => item?.shiksha_level);
+  const completedLevels = Array.from(
+    new Set(
+      // Use qualified/completed records directly (already filtered in backend),
+      // not promotion flag, because promotion flag can be inconsistent per row.
+      shikshaLavelArray
+        .filter((item: any) => Number(item?.is_qualified) === 1)
+        .map((item: any) => Number(item?.shiksha_level))
+        .filter((level: number) => Number.isFinite(level) && level > 0)
+    )
+  );
   // Function to get the next level based on the highest completed level
   const getNextLevel = (completedLevels: number[]): number | null => {
     // Get all available levels from the map keys, convert to numbers, and sort them
@@ -71,10 +79,10 @@ function DevoteePromotedLevelComponent() {
   const nextLevel = getNextLevel(completedLevels);
 
   // Find missing levels (only consider levels up to the highest completed one)
+  const maxCompleted = completedLevels.length ? Math.max(...completedLevels) : 0;
   const missingLevels = Object.keys(levelToTabValue)
     .map(level => parseInt(level))
     .filter(level => {
-      const maxCompleted = Math.max(...completedLevels);
       return level < maxCompleted && !completedLevels.includes(level);
     });
     

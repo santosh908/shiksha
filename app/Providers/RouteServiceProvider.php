@@ -77,6 +77,14 @@ class RouteServiceProvider extends ServiceProvider
             return self::HOME;
         }
 
+        // Default dashboard by devotee_type first (avoids ambiguity for multi-role users).
+        if (($user->devotee_type ?? null) === 'BB') {
+            return '/BhaktiBhekshuk/dashboard';
+        }
+        if (($user->devotee_type ?? null) === 'AD') {
+            return '/Devotee/dashboard';
+        }
+
         foreach (self::ROUTE_LIST as $role => $routes) {
             if ($user->hasRole($role)) {
                 return $routes['HOME'];

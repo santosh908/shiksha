@@ -5,6 +5,7 @@ interface UserStore {
   initiated_name?: string;
   account_approved: string;
   login_id: string;
+  devotee_type?: string;
   roles: string; // Add the roles property
   permissions: string;
   setUserValue: (key: keyof UserStore, value: string | string[]) => void;
@@ -16,6 +17,7 @@ const useUserStore = create<UserStore>((set) => ({
   initiated_name: '',
   account_approved: '',
   login_id: '',
+  devotee_type: '',
   roles: '', // Initialize roles as an empty array
   permissions: '',
 

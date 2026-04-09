@@ -5,18 +5,20 @@ namespace App\Http\Controllers\Auth\DevoteeResultList;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\ResultManagementApplicationService;
+use App\Services\ResultListApplicationService;
 use Inertia\Inertia;
 use Illuminate\Http\RedirectResponse;
 
 class ResultListController extends Controller
 {
     public function __construct(
-        private readonly ResultManagementApplicationService $resultManagementApplicationService
+        private readonly ResultManagementApplicationService $resultManagementApplicationService,
+        private readonly ResultListApplicationService $resultListApplicationService
     ) {
     }
     public function devoteeresultlist()
     {
-        $list = $this->resultManagementApplicationService->listForSuperAdmin();
+        $list = $this->resultListApplicationService->listForSuperAdmin();
         return Inertia::render('SuperAdmin/devoteeresultlist', [
             'devoteeResults' => $list
         ]);
@@ -24,7 +26,7 @@ class ResultListController extends Controller
 
     public function asherydevoteeresultlist()
     {
-        $list = $this->resultManagementApplicationService->listForAshrayLeader();
+        $list = $this->resultListApplicationService->listForAshrayLeader();
         // dd($list);
         return Inertia::render('AsheryLeader/devoteeresultlist', [
             'devoteeResults' => $list
@@ -33,7 +35,7 @@ class ResultListController extends Controller
 
     public function bhaktibhikshukdevoteeresultlist()
     {
-        $list = $this->resultManagementApplicationService->listForBhaktiVriksha();
+        $list = $this->resultListApplicationService->listForBhaktiVriksha();
         // dd($list);
         return Inertia::render('BhaktiBhekshuk/devoteeresultlist', [
             'devoteeResults' => $list

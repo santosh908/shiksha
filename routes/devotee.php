@@ -70,6 +70,8 @@ Route::post('/message', [DevoteeDashboardController::class, 'messagestore'])->na
 
 Route::get('/AfterExamSubmission', [ExaminationController::class, 'AfterExamSubmission'])->name('Devotee.AfterExamSubmission');
 
-Route::get('/Profile', function () {
-    return Inertia::render('Devotee/Profile');
-});
+Route::get('/Profile', [PostRegistrationUserController::class, 'DevoteeProfile']);
+Route::post('/UpdatePersonalInformation', [PostRegistrationUserController::class, 'DevoteeUpdatePersonalInfo']);
+Route::post('/UpdateSpritualInfoOne', [PostRegistrationUserController::class, 'DevoteeUpdateSpritualInfoOne']);
+Route::post('/UpdateSpritualInfoTwo', [PostRegistrationUserController::class, 'DevoteeUpdateSpritualInfoTwo']);
+Route::post('/UpdateSpritualInfoThree', [PostRegistrationUserController::class, 'DevoteeUpdateSpritualInfoThree']);

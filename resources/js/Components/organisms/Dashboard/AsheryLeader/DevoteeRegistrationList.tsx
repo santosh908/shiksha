@@ -256,6 +256,7 @@ export default function DevoteeRegistrationList() {
           <Text size="sm" c="dimmed">
             Page {pagination.current_page}
             {pagination.from != null && pagination.to != null ? ` · rows ${pagination.from}–${pagination.to}` : ''}
+            {pagination.total != null ? ` of ${pagination.total}` : ''}
           </Text>
           <Button
             variant="light"

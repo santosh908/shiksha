@@ -3,34 +3,27 @@
 namespace App\Http\Controllers\Auth\DevoteePromotedLavel;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Examination\Examination;
-use App\Models\Examination\ExamSessionModel;
 use Inertia\Inertia;
-use App\Services\DevoteePromotedLavel\DevoteePromotedLavelServices;
-use App\Services\ShikshaLevel\ShikshaLevelServices;
+use App\Services\DevoteePromotedLevelApplicationService;
 
 class DevoteePromotedLavelController extends Controller
 {
-    protected $DevoteePromotedLavelServices;
-    protected $ShikshaLevel;
-
-    public function __construct()
-    {
-        $this->DevoteePromotedLavelServices = new DevoteePromotedLavelServices();
-        $this->ShikshaLevel = new ShikshaLevelServices();
+    public function __construct(
+        private readonly DevoteePromotedLevelApplicationService $devoteePromotedLevelApplicationService
+    ) {
     }
+
     public function getDevoteePromotedLavel()
     {
-        $loginID = Auth::user()->login_id;
-        $list = $this->DevoteePromotedLavelServices->getDevoteePromotedLavel($loginID);
-        $examination = $this->DevoteePromotedLavelServices->getDevoteeExamination($loginID);
-       // dd($this->ShikshaLevel->ShikshaLevelListForDevotee());
+        $loginID = (string) (Auth::user()->login_id ?? '');
+        $list = $this->devoteePromotedLevelApplicationService->promotedLevelsByLoginId($loginID);
+        $examination = $this->devoteePromotedLevelApplicationService->availableExaminationsByLoginId($loginID);
+
         return Inertia::render('DevoteePromotedLevel/devoteePromotedLevel', [
             'promotedLevels' => $list,
             'examination' => $examination,
-            'ShikshaLevel' => $this->ShikshaLevel->ShikshaLevelListForDevotee(),
+            'ShikshaLevel' => $this->devoteePromotedLevelApplicationService->shikshaLevelsForDevotee(),
         ]);
     }
 }

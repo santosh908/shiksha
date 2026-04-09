@@ -8,7 +8,7 @@ use App\Domain\DevoteeModule\Contracts\DevoteeModuleRepositoryInterface;
 
 class DevoteeModuleApplicationService
 {
-    public function __construct(
+    public function __construct( 
         private readonly DevoteeModuleRepositoryInterface $repository,
         private readonly GetDevoteeModuleDetailsUseCase $getDevoteeModuleDetailsUseCase
     ) {

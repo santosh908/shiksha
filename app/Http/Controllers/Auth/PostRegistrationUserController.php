@@ -263,6 +263,17 @@ class PostRegistrationUserController extends Controller
         ]);
     }
 
+    public function DevoteeProfile()
+    {
+        $userId = (int) (Auth::id() ?? 0);
+        $masterData = $this->devoteeProfileAdminApplicationService->getDevoteeDetails($userId);
+
+        return Inertia::render('SuperAdmin/DevoteeRegisrationPage', [
+            'masterData' => $masterData,
+            'isSelfProfile' => true,
+        ]);
+    }
+
     public function SuperAdminGetPartiallDevoteeDetails($id)
     {
         $decodedId = base64_decode($id);
@@ -281,11 +292,51 @@ class PostRegistrationUserController extends Controller
         return redirect()->back()->with('success', 'Personal Information has been updated successfully!');
     }
 
+    public function DevoteeUpdatePersonalInfo(StoreSuperAdminDevoteeRegisration $request)
+    {
+        $authUser = Auth::user();
+        if (!$authUser) {
+            return redirect()->back()->withErrors(['error' => 'Unauthorized']);
+        }
+
+        $masterData = $this->devoteeProfileAdminApplicationService->getDevoteeDetails((int) $authUser->id);
+        $payload = array_merge($request->all(), [
+            'userId' => (int) $authUser->id,
+            'profileId' => $masterData['PersonalInfo']['id'] ?? 0,
+            // Lock immutable fields for devotee self-profile.
+            'email' => (string) ($authUser->email ?? ''),
+            'contact_number' => (string) ($authUser->contact_number ?? ''),
+        ]);
+
+        $dto = UpdatePersonalInfoData::fromArray($payload);
+        $this->devoteeProfileAdminApplicationService->updatePersonalInfo($dto);
+        session()->put('notification', "Personal Information has been updated successfully!");
+        return redirect()->back()->with('success', 'Personal Information has been updated successfully!');
+    }
+
     public function SuperAdminUpdateSpritualInfoOne(StoreProfessionalInfo $request)
     {
         $payload = array_merge($request->validated(), [
             'profileId' => $request->input('profileId'),
             'userId' => $request->input('userId'),
+        ]);
+        $dto = UpdateSpiritualInfoOneData::fromArray($payload);
+        $this->devoteeProfileAdminApplicationService->updateSpiritualInfoOne($dto);
+        session()->put('notification', "Spritual Information 1 has been updated successfully!");
+        return redirect()->back()->with('success', 'Spritual Information 1 has been updated successfully!');
+    }
+
+    public function DevoteeUpdateSpritualInfoOne(StoreProfessionalInfo $request)
+    {
+        $authUser = Auth::user();
+        if (!$authUser) {
+            return redirect()->back()->withErrors(['error' => 'Unauthorized']);
+        }
+
+        $masterData = $this->devoteeProfileAdminApplicationService->getDevoteeDetails((int) $authUser->id);
+        $payload = array_merge($request->validated(), [
+            'profileId' => $masterData['PersonalInfo']['id'] ?? 0,
+            'userId' => (int) $authUser->id,
         ]);
         $dto = UpdateSpiritualInfoOneData::fromArray($payload);
         $this->devoteeProfileAdminApplicationService->updateSpiritualInfoOne($dto);
@@ -304,12 +355,51 @@ class PostRegistrationUserController extends Controller
         return redirect()->back()->with('success', 'Spritual Information 2 has been updated successfully!');
     }
 
+    public function DevoteeUpdateSpritualInfoTwo(StoreHearingReading $request)
+    {
+        $authUser = Auth::user();
+        if (!$authUser) {
+            return redirect()->back()->withErrors(['error' => 'Unauthorized']);
+        }
+
+        $masterData = $this->devoteeProfileAdminApplicationService->getDevoteeDetails((int) $authUser->id);
+        $payload = array_merge($request->validated(), [
+            'profileId' => $masterData['PersonalInfo']['id'] ?? 0,
+        ]);
+        $dto = UpdateSpiritualInfoTwoData::fromArray($payload);
+        $this->devoteeProfileAdminApplicationService->updateSpiritualInfoTwo($dto);
+        session()->put('notification', "Spritual Information 2 has been updated successfully!");
+        return redirect()->back()->with('success', 'Spritual Information 2 has been updated successfully!');
+    }
+
     public function SuperAdminUpdateSpritualInfoThree(StoreDevoteeSeminar $request)
     {
         $payload = array_merge($request->validated(), [
             'profileId' => $request->input('profileId'),
             'userId' => $request->input('userId'),
             'Bhakti_BhikshukId' => $request->input('Bhakti_BhikshukId'),
+        ]);
+        $dto = UpdateSpiritualInfoThreeData::fromArray($payload);
+        $this->devoteeProfileAdminApplicationService->updateSpiritualInfoThree($dto);
+        session()->put('notification', "Spritual Information 3 has been updated successfully!");
+        return redirect()->back()->with('success', 'Spritual Information 3 has been updated successfully!');
+    }
+
+    public function DevoteeUpdateSpritualInfoThree(StoreDevoteeSeminar $request)
+    {
+        $authUser = Auth::user();
+        if (!$authUser) {
+            return redirect()->back()->withErrors(['error' => 'Unauthorized']);
+        }
+
+        $masterData = $this->devoteeProfileAdminApplicationService->getDevoteeDetails((int) $authUser->id);
+        $payload = array_merge($request->validated(), [
+            'profileId' => $masterData['PersonalInfo']['id'] ?? 0,
+            'userId' => (int) $authUser->id,
+            'spiritual_master_you_aspiring' => (string) $request->input('spiritual_master_you_aspiring'),
+            // Lock leader mappings for devotee self-profile.
+            'ashray_leader_code' => $masterData['DevoteeLeader']['code'] ?? $request->input('ashray_leader_code'),
+            'Bhakti_BhikshukId' => $masterData['BhaktiBhikshuk']['Bhakti_Bhekshuk'] ?? $request->input('Bhakti_BhikshukId'),
         ]);
         $dto = UpdateSpiritualInfoThreeData::fromArray($payload);
         $this->devoteeProfileAdminApplicationService->updateSpiritualInfoThree($dto);

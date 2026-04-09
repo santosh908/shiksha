@@ -13,6 +13,7 @@ interface ProfessionalInfoPropos {
 }
 
 export default function Spritual_1({ masterData, handleBack, handleNext, containerStyle }: ProfessionalInfoPropos) {
+  const { isSelfProfile } = usePage<{ isSelfProfile?: boolean }>().props;
   const [value, setValue] = useState('');
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -43,7 +44,7 @@ export default function Spritual_1({ masterData, handleBack, handleNext, contain
   });
 
   const handleSubmit = () => {
-    router.post('/Action/UpdateSpritualInfoOne', form.values, {
+    router.post(isSelfProfile ? '/Devotee/UpdateSpritualInfoOne' : '/Action/UpdateSpritualInfoOne', form.values, {
       preserveScroll: true,
       onSuccess: () => {
         setNotificationMessage('Devotee spiritual information updated successfully.');
@@ -249,7 +250,7 @@ export default function Spritual_1({ masterData, handleBack, handleNext, contain
       <Grid>
         <Grid.Col span={12}>
           <Group justify="center" mt="md">
-            {masterData?.PersonalInfo?.status_code === 'S' ? (
+            {!isSelfProfile && masterData?.PersonalInfo?.status_code === 'S' ? (
               <Button type="submit" color="yellow" onClick={() => router.visit(`/Action/devoteeList`)}>
                 <IconListCheck size={20} /> Back To DevoteeList
               </Button>

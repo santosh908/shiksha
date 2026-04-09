@@ -21,6 +21,11 @@ use App\Http\Controllers\Auth\SessionResult\SessionResultController;
 //Route::put('/RejectBulkDevotee/{id}', [PostRegistrationUserController::class, 'RejectBulkDevotee']);
 
 Route::get('/dashboard', [BhaktiBhikshukController::class, 'bhaktibhikshukdashboard'])->name('BhaktiBhekshuk.dashboard');
+Route::get('/Profile', [PostRegistrationUserController::class, 'DevoteeProfile'])->name('BhaktiBhekshuk.profile');
+Route::post('/UpdatePersonalInformation', [PostRegistrationUserController::class, 'DevoteeUpdatePersonalInfo']);
+Route::post('/UpdateSpritualInfoOne', [PostRegistrationUserController::class, 'DevoteeUpdateSpritualInfoOne']);
+Route::post('/UpdateSpritualInfoTwo', [PostRegistrationUserController::class, 'DevoteeUpdateSpritualInfoTwo']);
+Route::post('/UpdateSpritualInfoThree', [PostRegistrationUserController::class, 'DevoteeUpdateSpritualInfoThree']);
 
 
 //Route::get('/devoteeresultlist', [ResultListController::class, 'bhaktibhikshukdevoteeresultlist'])->name('BhaktiBhekshuk.devoteeresultlist');

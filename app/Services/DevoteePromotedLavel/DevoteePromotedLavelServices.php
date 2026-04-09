@@ -15,6 +15,12 @@ class DevoteePromotedLavelServices
 
     public function getDevoteePromotedLavel($userId)
     {
+        $latestQualifiedIdsPerLevel = DB::table('shiksah_lavel_completed')
+            ->selectRaw('MAX(id) as id')
+            ->where('login_id', '=', $userId)
+            ->where('is_qualified', '=', 1)
+            ->groupBy('shiksha_level');
+
         $list = ExamLavelCompleted::join('shiksha_levels', 'shiksha_levels.id', '=', 'shiksah_lavel_completed.shiksha_level')
             ->join('users', 'users.login_id', '=', 'shiksah_lavel_completed.login_id')
             ->join('user_have_ashray_leader', 'user_have_ashray_leader.user_id', '=', 'users.id')
@@ -39,8 +45,9 @@ class DevoteePromotedLavelServices
             ])
             ->where('shiksah_lavel_completed.login_id', '=', $userId)
             ->where('shiksah_lavel_completed.is_qualified', '=', 1)
+            ->whereIn('shiksah_lavel_completed.id', $latestQualifiedIdsPerLevel)
             ->orderBy('shiksah_lavel_completed.shiksha_level', 'DESC')
-            ->whereNotIn('shiksha_levels.id', [1, 6, 8,9])
+            ->whereNotIn('shiksha_levels.id', [1, 6, 8, 9])
             ->get()
             ->toArray();
         return $list;
